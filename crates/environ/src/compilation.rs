@@ -88,7 +88,7 @@ pub trait CacheStore: Send + Sync + std::fmt::Debug {
     /// Given an arbitrary key and bytes, stores them in the cache.
     ///
     /// Returns false when insertion in the cache failed.
-    fn insert(&self, key: &[u8], value: Vec<u8>) -> bool;
+    fn insert(&mut self, key: &[u8], value: Vec<u8>) -> bool;
 }
 
 /// Abstract trait representing the ability to create a `Compiler` below.
