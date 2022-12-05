@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 //! Instruction operand sub-components (aka "parts"): definitions and printing.
 
 use super::regs::{self};
@@ -256,7 +258,8 @@ newtype_of_reg!(
 pub use crate::isa::x64::lower::isle::generated_code::Amode;
 
 impl Amode {
-    pub(crate) fn imm_reg(simm32: u32, base: Reg) -> Self {
+    /// Trusted immediate and register variant constructor.
+    pub fn imm_reg(simm32: u32, base: Reg) -> Self {
         debug_assert!(base.class() == RegClass::Int);
         Self::ImmReg {
             simm32,
@@ -265,7 +268,8 @@ impl Amode {
         }
     }
 
-    pub(crate) fn imm_reg_reg_shift(simm32: u32, base: Gpr, index: Gpr, shift: u8) -> Self {
+    /// Trusted immediate register and shift variant constructor.
+    pub fn imm_reg_reg_shift(simm32: u32, base: Gpr, index: Gpr, shift: u8) -> Self {
         debug_assert!(base.class() == RegClass::Int);
         debug_assert!(index.class() == RegClass::Int);
         debug_assert!(shift <= 3);
@@ -453,6 +457,11 @@ pub enum SyntheticAmode {
 }
 
 impl SyntheticAmode {
+    /// Real addressing mode constructor.
+    pub fn real(amode: Amode) -> Self {
+	Self::Real(amode)
+    }
+
     pub(crate) fn nominal_sp_offset(simm32: u32) -> Self {
         SyntheticAmode::NominalSPOffset { simm32 }
     }
@@ -550,14 +559,17 @@ pub enum RegMemImm {
 }
 
 impl RegMemImm {
-    pub(crate) fn reg(reg: Reg) -> Self {
+    /// Register constructor.
+    pub fn reg(reg: Reg) -> Self {
         debug_assert!(reg.class() == RegClass::Int || reg.class() == RegClass::Float);
         Self::Reg { reg }
     }
-    pub(crate) fn mem(addr: impl Into<SyntheticAmode>) -> Self {
+    /// Memory addressing mode constructor.
+    pub fn mem(addr: impl Into<SyntheticAmode>) -> Self {
         Self::Mem { addr: addr.into() }
     }
-    pub(crate) fn imm(simm32: u32) -> Self {
+    /// Immediate constructor
+    pub fn imm(simm32: u32) -> Self {
         Self::Imm { simm32 }
     }
 
@@ -638,11 +650,11 @@ pub enum RegMem {
 }
 
 impl RegMem {
-    pub(crate) fn reg(reg: Reg) -> Self {
+    pub fn reg(reg: Reg) -> Self {
         debug_assert!(reg.class() == RegClass::Int || reg.class() == RegClass::Float);
         Self::Reg { reg }
     }
-    pub(crate) fn mem(addr: impl Into<SyntheticAmode>) -> Self {
+    pub fn mem(addr: impl Into<SyntheticAmode>) -> Self {
         Self::Mem { addr: addr.into() }
     }
     /// Asserts that in register mode, the reg class is the one that's expected.

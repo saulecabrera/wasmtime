@@ -1,12 +1,13 @@
 //! X86_64-bit Instruction Set Architecture.
 
-use self::inst::EmitInfo;
+pub use self::inst::{args, EmitInfo, EmitState, Inst};
+pub use crate::isa::x64::settings as x64_settings;
 
 use super::TargetIsa;
 use crate::ir::{condcodes::IntCC, Function, Type};
 #[cfg(feature = "unwind")]
 use crate::isa::unwind::systemv;
-use crate::isa::x64::{inst::regs::create_reg_env_systemv, settings as x64_settings};
+use crate::isa::x64::inst::regs::create_reg_env_systemv;
 use crate::isa::Builder as IsaBuilder;
 use crate::machinst::{
     compile, CompiledCode, CompiledCodeStencil, MachTextSectionBuilder, Reg, SigSet,
@@ -23,7 +24,7 @@ mod abi;
 pub mod encoding;
 mod inst;
 mod lower;
-mod settings;
+pub mod settings;
 
 /// An X64 backend.
 pub(crate) struct X64Backend {

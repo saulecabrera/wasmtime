@@ -282,6 +282,24 @@ impl MachBufferFinalized<Stencil> {
             unwind_info: self.unwind_info,
         }
     }
+
+    /// Converts each relative source location into an absolute one by applying
+    /// the given base source location.
+    pub fn apply_base_srcloc(self, base_srcloc: SourceLoc) -> MachBufferFinalized<Final> {
+        MachBufferFinalized {
+            data: self.data,
+            relocs: self.relocs,
+            traps: self.traps,
+            call_sites: self.call_sites,
+            srclocs: self
+                .srclocs
+                .into_iter()
+                .map(|srcloc| srcloc.apply_base_srcloc(base_srcloc))
+                .collect(),
+            stack_maps: self.stack_maps,
+            unwind_info: self.unwind_info,
+        }
+    }
 }
 
 /// A `MachBuffer` once emission is completed: holds generated code and records,
@@ -1555,6 +1573,14 @@ impl MachSrcLoc<Stencil> {
             start: self.start,
             end: self.end,
             loc: self.loc.expand(params.base_srcloc()),
+        }
+    }
+
+    fn apply_base_srcloc(self, base: SourceLoc) -> MachSrcLoc<Final> {
+        MachSrcLoc {
+            start: self.start,
+            end: self.end,
+            loc: self.loc.expand(base),
         }
     }
 }

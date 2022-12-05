@@ -1,5 +1,6 @@
 use crate::isa::TargetIsa;
 use anyhow::Result;
+use cranelift_codegen::{MachBufferFinalized, Final};
 use target_lexicon::Triple;
 use wasmparser::{FuncType, FuncValidator, FunctionBody, ValidatorResources};
 
@@ -36,7 +37,7 @@ impl TargetIsa for Aarch64 {
         _sig: &FuncType,
         _body: &FunctionBody,
         mut _validator: FuncValidator<ValidatorResources>,
-    ) -> Result<Vec<String>> {
+    ) -> Result<MachBufferFinalized<Final>> {
         todo!()
     }
 }

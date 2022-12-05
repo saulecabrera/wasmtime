@@ -6,7 +6,12 @@ use crate::{
     stack::Stack,
 };
 use anyhow::Result;
+use cranelift_codegen::{MachBufferFinalized, Final};
 use wasmparser::{BinaryReader, FuncValidator, ValType, ValidatorResources, VisitOperator};
+
+pub(crate) struct CompiledCode {
+    buffer: MachBufferFinalized<Final>,
+}
 
 /// The code generation context.
 pub(crate) struct CodeGenContext<'a, M>
@@ -63,13 +68,12 @@ where
         &mut self,
         body: &mut BinaryReader<'a>,
         validator: FuncValidator<ValidatorResources>,
-    ) -> Result<Vec<String>> {
+    ) -> Result<MachBufferFinalized<Final>> {
         self.emit_start()
             .and(self.emit_body(body, validator))
             .and(self.emit_end())?;
-        let buf = self.context.masm.finalize();
-        let code = Vec::from(buf);
-        Ok(code)
+	let masm = std::mem::take(&mut self.context.masm);
+        Ok(masm.finalize())
     }
 
     // TODO stack checks

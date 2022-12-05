@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use core::fmt::Formatter;
-use cranelift_codegen::isa::CallConv;
+use cranelift_codegen::{isa::CallConv, MachBufferFinalized, Final};
 use std::{
     error,
     fmt::{self, Debug, Display},
@@ -87,7 +87,7 @@ pub trait TargetIsa: Send + Sync {
         sig: &FuncType,
         body: &FunctionBody,
         validator: FuncValidator<ValidatorResources>,
-    ) -> Result<Vec<String>>;
+    ) -> Result<MachBufferFinalized<Final>>;
 
     /// Get the default calling convention of the underlying target triple.
     fn call_conv(&self) -> CallConv {

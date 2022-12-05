@@ -13,6 +13,8 @@ use wasmtime_environ::{
 };
 use winch_codegen::isa::{self, TargetIsa};
 
+mod dis;
+
 #[derive(Parser, Debug)]
 struct Options {
     /// The input file.
@@ -65,9 +67,8 @@ fn compile(
     let buffer = isa
         .compile_function(&sig, &body, validator)
         .expect("Couldn't compile function");
-    for i in buffer {
-        println!("{}", i);
-    }
+
+    crate::dis::print(buffer.data(), isa)?;
 
     Ok(())
 }

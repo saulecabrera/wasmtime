@@ -1,3 +1,5 @@
+use cranelift_codegen::{MachBufferFinalized, Final};
+
 use crate::abi::align_to;
 use crate::abi::{addressing_mode::Address, local::LocalSlot};
 use crate::isa::reg::Reg;
@@ -57,7 +59,7 @@ impl From<Reg> for RegImm {
 /// This approach allows for a more general interface that can be restricted
 /// where needed, in the case of architectures that use a two-argument form.
 
-pub(crate) trait MacroAssembler {
+pub(crate) trait MacroAssembler: Default {
     /// Emit the function prologue.
     fn prologue(&mut self);
 
@@ -90,7 +92,7 @@ pub(crate) trait MacroAssembler {
 
     /// Finalize the assembly and return the result.
     // NOTE Interim, debug approach
-    fn finalize(&mut self) -> &[String];
+    fn finalize(self) -> MachBufferFinalized<Final>;
 
     /// Zero a particular register.
     fn zero(&mut self, reg: Reg);

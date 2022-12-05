@@ -67,7 +67,7 @@ impl<'de> Deserialize<'de> for VersionMarker {
 
 /// Function parameters used when creating this function, and that will become applied after
 /// compilation to materialize the final `CompiledCode`.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 #[cfg_attr(feature = "enable-serde", derive(Serialize, Deserialize))]
 pub struct FunctionParameters {
     /// The first `SourceLoc` appearing in the function, serving as a base for every relative

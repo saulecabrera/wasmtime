@@ -2479,7 +2479,8 @@ pub struct EmitInfo {
 }
 
 impl EmitInfo {
-    pub(crate) fn new(flags: settings::Flags, isa_flags: x64_settings::Flags) -> Self {
+    /// XXX
+    pub fn new(flags: settings::Flags, isa_flags: x64_settings::Flags) -> Self {
         Self { flags, isa_flags }
     }
 }

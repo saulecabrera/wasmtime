@@ -1,4 +1,5 @@
 use regalloc2::{PReg, RegClass};
+use cranelift_codegen::Reg as MachInstReg;
 
 /// A newtype abstraction on top of a physical register.
 //
@@ -36,10 +37,21 @@ impl Reg {
     pub fn hw_enc(self) -> u8 {
         self.0.hw_enc() as u8
     }
+
+    /// Get the inner physical register
+    pub fn inner(&self) -> PReg {
+	self.0
+    }
 }
 
 impl std::fmt::Debug for Reg {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+impl From<Reg> for MachInstReg {
+    fn from(r: Reg) -> MachInstReg {
+	r.inner().into()
     }
 }

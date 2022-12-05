@@ -6,6 +6,7 @@ use crate::regalloc::RegAlloc;
 use crate::stack::Stack;
 use crate::{isa::TargetIsa, regset::RegSet};
 use anyhow::Result;
+use cranelift_codegen::{MachBufferFinalized, Final};
 use target_lexicon::Triple;
 use wasmparser::{FuncType, FuncValidator, FunctionBody, ValidatorResources};
 
@@ -17,7 +18,7 @@ mod masm;
 // in that sense, this directive is a temporary measure to avoid
 // dead code warnings.
 #[allow(dead_code)]
-mod regs;
+pub(crate) mod regs;
 
 /// Create an ISA from the given triple.
 pub(crate) fn isa_from(triple: Triple) -> X64 {
@@ -49,7 +50,7 @@ impl TargetIsa for X64 {
         sig: &FuncType,
         body: &FunctionBody,
         mut validator: FuncValidator<ValidatorResources>,
-    ) -> Result<Vec<String>> {
+    ) -> Result<MachBufferFinalized<Final>> {
         let mut body = body.get_binary_reader();
         let masm = MacroAssembler::new();
         let stack = Stack::new();

@@ -1,3 +1,5 @@
+use cranelift_codegen::{MachBufferFinalized, Final};
+
 use crate::{
     abi::{addressing_mode::Address, local::LocalSlot},
     isa::reg::Reg,
@@ -34,7 +36,7 @@ impl Masm for MacroAssembler {
         0u32
     }
 
-    fn finalize(&mut self) -> &[String] {
+    fn finalize(self) -> MachBufferFinalized<Final> {
         todo!()
     }
 
