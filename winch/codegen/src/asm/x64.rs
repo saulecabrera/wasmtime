@@ -8,7 +8,7 @@ use cranelift_codegen::{
             Amode, FromWritableReg, Gpr, GprMemImm, OperandSize, RegMemImm, SyntheticAmode,
             WritableGpr, AluRmiROpcode, ExtMode, RegMem, GprMem
         },
-        x64_settings, EmitInfo, EmitState, Inst,
+        settings as x64_settings, EmitInfo, EmitState, Inst,
     },
     settings, MachBuffer, MachInstEmit, Writable, MachBufferFinalized, Final
 };
