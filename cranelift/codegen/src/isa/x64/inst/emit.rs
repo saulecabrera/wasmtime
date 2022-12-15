@@ -684,6 +684,29 @@ pub(crate) fn emit(
             }
         }
 
+	Inst::MovIM { size, simm64, dst } => {
+            let dst = &dst.finalize(state, sink).with_allocs(allocs);
+	    let prefix = LegacyPrefixes::None;
+	    let default_rex = RexFlags::clear_w();
+	    let default_opcode = 0xC7;
+
+	    let (opcode, rex, size) = match *size {
+		OperandSize::Size8 => (0xC6, default_rex, 1),
+		OperandSize::Size16 => (default_opcode, default_rex, 2),
+		OperandSize::Size32 => (default_opcode, default_rex, 4),
+		OperandSize::Size64 => {
+		    if !low32_will_sign_extend_to_64(*simm64) {
+			panic!("Immediate-to-memory moves require immediate operand to sign-extend to 64 bits.");
+		    }
+
+		    (default_opcode, RexFlags::from(*size), 8)
+		}
+	    };
+
+	    emit_std_enc_mem(sink, info, prefix, opcode, 1, 0, dst, rex, 0);
+	    emit_simm(sink, size, *simm64 as u32);
+	},
+
         Inst::MovRR { size, src, dst } => {
             let src = allocs.next(src.to_reg());
             let dst = allocs.next(dst.to_reg().to_reg());

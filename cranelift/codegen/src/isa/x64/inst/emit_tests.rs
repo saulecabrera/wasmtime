@@ -2560,6 +2560,19 @@ fn test_x64_emit() {
         "movslq  -7(%r11), %rdx",
     ));
 
+    // Mov_I_M
+
+    insns.push((
+	Inst::MovIM  {
+	    size: OperandSize::Size64,
+	    simm64: 0u64,
+	    dst: Amode::imm_reg(8u32, rsp).into(),
+	},
+        "48C744240800000000",
+        "movq    $0, 8(%rsp)",
+    ));
+
+
     // ========================================================
     // Mov_R_M.  Byte stores are tricky.  Check everything carefully.
     insns.push((

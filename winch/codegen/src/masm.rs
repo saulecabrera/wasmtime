@@ -114,9 +114,7 @@ pub(crate) trait MacroAssembler: Default {
             assert!(mem.start % 4 == 0);
             let start = align_to(mem.start, word_size);
             let addr = self.local_address(&LocalSlot::i32(start));
-	    let zero = regalloc.scratch;
-	    self.zero(zero);
-            self.store(RegImm::reg(zero), addr, OperandSize::S32);
+            self.store(RegImm::imm(0), addr, OperandSize::S32);
 
             // Ensure that the new start of the range, is word-size aligned.
             assert!(start % word_size == 0);
@@ -129,9 +127,7 @@ pub(crate) trait MacroAssembler: Default {
         if slots == 1 {
             let slot = LocalSlot::i64(start + word_size);
             let addr = self.local_address(&slot);
-	    let zero = regalloc.scratch;
-	    self.zero(zero);
-            self.store(RegImm::reg(zero), addr, OperandSize::S64);
+            self.store(RegImm::imm(0), addr, OperandSize::S64);
         } else {
             // TODO
             // Add an upper bound to this generation;

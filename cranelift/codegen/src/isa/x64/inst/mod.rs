@@ -48,7 +48,7 @@ pub struct CallInfo {
 fn inst_size_test() {
     // This test will help with unintentionally growing the size
     // of the Inst enum.
-    assert_eq!(40, std::mem::size_of::<Inst>());
+    assert_eq!(41, std::mem::size_of::<Inst>());
 }
 
 pub(crate) fn low32_will_sign_extend_to_64(x: u64) -> bool {
@@ -91,6 +91,7 @@ impl Inst {
             | Inst::LockCmpxchg { .. }
             | Inst::Mov64MR { .. }
             | Inst::MovRM { .. }
+            | Inst::MovIM { .. }
             | Inst::MovRR { .. }
             | Inst::MovFromPReg { .. }
             | Inst::MovToPReg { .. }
@@ -1251,6 +1252,16 @@ impl PrettyPrint for Inst {
                 }
             }
 
+	    Inst::MovIM { size, simm64, dst } => {
+                let dst = dst.pretty_print(size.to_bytes(), allocs);
+		format!(
+		    "{} ${}, {}",
+		    ljustify2("mov".to_string(), suffix_lq(*size)),
+		    *simm64 as i64,
+		    dst
+		)
+	    }
+
             Inst::MovRR { size, src, dst } => {
                 let src = pretty_print_reg(src.to_reg(), size.to_bytes(), allocs);
                 let dst = pretty_print_reg(dst.to_reg().to_reg(), size.to_bytes(), allocs);
@@ -2005,6 +2016,11 @@ fn x64_get_operands<F: Fn(VReg) -> VReg>(inst: &Inst, collector: &mut OperandCol
             collector.reg_def(dst.to_writable_reg());
             src.get_operands(collector);
         }
+
+        Inst::MovIM { dst, .. } => {
+	    dst.get_operands(collector);
+	},
+
         Inst::MovRM { src, dst, .. } => {
             collector.reg_use(src.to_reg());
             dst.get_operands(collector);

@@ -88,8 +88,13 @@ impl Assembler {
             (Operand::Reg(r), Operand::Mem(addr)) => match addr {
                 Address::Base { base, imm } => self.mov_rm(*r, *base, *imm),
             },
+
             // All immediates are assumed to be 32 bit ints, for now.
             // so we are delegating it to movl.
+            (Operand::Imm(r), Operand::Mem(addr)) => match addr {
+                Address::Base { base, imm } => self.mov_im(*r, *base, *imm),
+            },
+
             (Operand::Imm(imm), Operand::Reg(reg)) => self.movl_ir(*imm, *reg),
             (Operand::Mem(addr), Operand::Reg(reg)) => match addr {
                 Address::Base { base, imm } => self.mov_mr(*base, *imm, *reg),
@@ -111,6 +116,15 @@ impl Assembler {
             dst,
             size: OperandSize::Size64,
         });
+    }
+
+    pub fn mov_im(&mut self, src: i32, base: Reg, disp: u32) {
+	let dst = Amode::imm_reg(disp, base.into());
+	self.emit(Inst::MovIM {
+	    size: OperandSize::Size64,
+	    simm64: src as u64,
+	    dst: SyntheticAmode::real(dst),
+	});
     }
 
     pub fn mov_rm(&mut self, src: Reg, base: Reg, disp: u32) {
@@ -145,6 +159,10 @@ impl Assembler {
         // load combinations
         match &(src, dst) {
             (Operand::Reg(lhs), Operand::Reg(rhs)) => self.movl_rr(*lhs, *rhs),
+
+            (Operand::Imm(r), Operand::Mem(addr)) => match addr {
+                Address::Base { base, imm } => self.movl_im(*r, *base, *imm),
+            },
             (Operand::Reg(r), Operand::Mem(addr)) => match addr {
                 Address::Base { base, imm } => self.movl_rm(*r, *base, *imm),
             },
@@ -192,6 +210,15 @@ impl Assembler {
             simm64: imm as u64,
             dst,
         });
+    }
+
+    pub fn movl_im(&mut self, src: i32, base: Reg, disp: u32) {
+	let dst = Amode::imm_reg(disp, base.into());
+	self.emit(Inst::MovIM {
+	    size: OperandSize::Size32,
+	    simm64: src as u64,
+	    dst: SyntheticAmode::real(dst),
+	});
     }
 
     pub fn movl_mr(&mut self, base: Reg, disp: u32, dst: Reg) {
