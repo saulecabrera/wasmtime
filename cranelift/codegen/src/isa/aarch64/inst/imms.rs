@@ -24,6 +24,7 @@ pub struct NZCV {
 }
 
 impl NZCV {
+    /// Create a new NZCV flags representation.
     pub fn new(n: bool, z: bool, c: bool, v: bool) -> NZCV {
         NZCV { n, z, c, v }
     }
@@ -45,6 +46,7 @@ pub struct UImm5 {
 }
 
 impl UImm5 {
+    /// Create an unsigned 5-bit immediate from u8.
     pub fn maybe_from_u8(value: u8) -> Option<UImm5> {
         if value < 32 {
             Some(UImm5 { value })

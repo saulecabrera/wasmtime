@@ -7,6 +7,11 @@ mod abi;
 mod masm;
 mod regs;
 
+use cranelift_codegen::isa::aarch64::{
+    OperandSize, ALUOp, AMode,
+    settings as aarch64_settings, EmitInfo, EmitState, Inst,
+};
+
 /// Create an ISA from the given triple.
 pub(crate) fn isa_from(triple: Triple) -> Aarch64 {
     Aarch64::new(triple)

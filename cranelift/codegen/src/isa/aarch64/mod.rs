@@ -21,11 +21,11 @@ use target_lexicon::{Aarch64Architecture, Architecture, OperatingSystem, Triple}
 mod abi;
 pub(crate) mod inst;
 mod lower;
-mod settings;
+pub mod settings;
 
 use inst::create_reg_env;
 
-use self::inst::EmitInfo;
+pub use self::inst::*;
 
 /// An AArch64 backend.
 pub struct AArch64Backend {
