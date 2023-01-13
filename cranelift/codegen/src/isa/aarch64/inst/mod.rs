@@ -15,17 +15,17 @@ use regalloc2::{PRegSet, VReg};
 use smallvec::{smallvec, SmallVec};
 use std::string::{String, ToString};
 
-pub mod regs;
-pub use self::regs::*;
+pub(crate) mod regs;
+pub (crate) use self::regs::*;
 pub mod imms;
 pub use self::imms::*;
 pub mod args;
 pub use self::args::*;
-pub mod emit;
-pub use self::emit::*;
+pub(crate) mod emit;
+pub(crate) use self::emit::*;
 use crate::isa::aarch64::abi::AArch64MachineDeps;
 
-pub mod unwind;
+pub(crate) mod unwind;
 
 #[cfg(test)]
 mod emit_tests;

@@ -1,4 +1,11 @@
-use cranelift_codegen::{MachBufferFinalized, Final};
+use cranelift_codegen::{
+    MachBufferFinalized, Final,
+    settings, MachBuffer, MachInstEmit, Writable,
+    isa::aarch64::{
+	settings as aaarch64_settings,
+	inst::Inst,
+    },
+};
 
 use crate::{
     abi::{addressing_mode::Address, local::LocalSlot},
@@ -11,23 +18,18 @@ pub(crate) struct MacroAssembler;
 
 impl Masm for MacroAssembler {
     fn prologue(&mut self) {
-        todo!()
     }
 
     fn epilogue(&mut self, _locals_size: u32) {
-        todo!()
     }
 
     fn reserve_stack(&mut self, _bytes: u32) {
-        todo!()
     }
 
     fn local_address(&mut self, _local: &LocalSlot) -> Address {
-        todo!()
     }
 
     fn store(&mut self, _src: RegImm, _dst: Address, _size: OperandSize) {
-        todo!()
     }
 
     fn load(&mut self, _src: Address, _dst: Reg, _size: OperandSize) {}
@@ -37,22 +39,21 @@ impl Masm for MacroAssembler {
     }
 
     fn finalize(self) -> MachBufferFinalized<Final> {
-        todo!()
     }
 
     fn mov(&mut self, _src: RegImm, _dst: RegImm, _size: OperandSize) {
-        todo!()
     }
 
     fn add(&mut self, _dst: RegImm, __lhs: RegImm, __rhs: RegImm, _size: OperandSize) {
-        todo!()
     }
 
     fn zero(&mut self, _reg: Reg) {
-        todo!()
     }
 
     fn push(&mut self, _reg: Reg) -> u32 {
-        todo!()
     }
+}
+
+
+struct Assembler {
 }
