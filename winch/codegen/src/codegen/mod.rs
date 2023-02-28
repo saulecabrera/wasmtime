@@ -7,15 +7,17 @@ use wasmparser::{BinaryReader, FuncValidator, ValType, ValidatorResources, Visit
 
 mod context;
 pub(crate) use context::*;
+mod env;
+pub use env::*;
+mod call;
+pub(crate) use call::*;
 
 /// The code generation abstraction.
-pub(crate) struct CodeGen<'a, M>
+pub(crate) struct CodeGen<'a, A, M>
 where
+    A: ABI,
     M: MacroAssembler,
 {
-    /// The word size in bytes, extracted from the current ABI.
-    word_size: u32,
-
     /// The ABI-specific representation of the function signature, excluding results.
     sig: ABISig,
 
@@ -24,18 +26,32 @@ where
 
     /// The MacroAssembler.
     pub masm: &'a mut M,
+
+    /// A reference to the current ABI.
+    pub abi: &'a A,
+
+    /// A reference to the function's environment.
+    pub env: &'a dyn FuncEnv,
 }
 
-impl<'a, M> CodeGen<'a, M>
+impl<'a, A, M> CodeGen<'a, A, M>
 where
+    A: ABI,
     M: MacroAssembler,
 {
-    pub fn new<A: ABI>(masm: &'a mut M, context: CodeGenContext<'a>, sig: ABISig) -> Self {
+    pub fn new(
+        masm: &'a mut M,
+        abi: &'a A,
+        context: CodeGenContext<'a>,
+        env: &'a dyn FuncEnv,
+        sig: ABISig,
+    ) -> Self {
         Self {
-            word_size: <A as ABI>::word_bytes(),
+            abi,
             sig,
             context,
             masm,
+            env,
         }
     }
 
@@ -68,7 +84,7 @@ where
         let defined_locals_range = &self.context.frame.defined_locals_range;
         self.masm.zero_mem_range(
             defined_locals_range.as_range(),
-            self.word_size,
+            <A as ABI>::word_bytes(),
             &mut self.context.regalloc,
         );
 
@@ -103,7 +119,20 @@ where
         }
     }
 
-    // Emit the usual function end instruction sequence.
+    /// Emit a direct function call.
+    pub fn emit_call(&mut self, index: u32) {
+        let callee = self.env.callee_from_index(index);
+        if callee.import {
+            // TODO: Only locally defined functions for now.
+            unreachable!()
+        }
+
+        let sig = self.abi.sig(callee.call_conv, &callee.ty);
+        let fncall = FnCall::new(self.abi, &sig, &mut self.context, self.masm);
+        fncall.emit::<M, A>(self.masm, &mut self.context, index);
+    }
+
+    /// Emit the usual function end instruction sequence.
     pub fn emit_end(&mut self) -> Result<()> {
         self.handle_abi_result();
         self.masm.epilogue(self.context.frame.locals_size);

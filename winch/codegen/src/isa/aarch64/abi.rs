@@ -1,6 +1,7 @@
 use super::regs;
 use crate::abi::{ABIArg, ABIResult, ABISig, ABI};
 use crate::isa::reg::Reg;
+use cranelift_codegen::isa::CallConv;
 use smallvec::SmallVec;
 use wasmparser::{FuncType, ValType};
 
@@ -42,9 +43,12 @@ impl RegIndexEnv {
 }
 
 impl ABI for Aarch64ABI {
-    // TODO change to 16 once SIMD is supported
     fn stack_align(&self) -> u8 {
         8
+    }
+
+    fn call_stack_align(&self) -> u8 {
+        16
     }
 
     fn arg_base_offset(&self) -> u8 {
@@ -55,7 +59,7 @@ impl ABI for Aarch64ABI {
         64
     }
 
-    fn sig(&self, wasm_sig: &FuncType) -> ABISig {
+    fn sig(&self, call_conv: CallConv, wasm_sig: &FuncType) -> ABISig {
         if wasm_sig.results().len() > 1 {
             panic!("multi-value not supported");
         }
@@ -74,7 +78,7 @@ impl ABI for Aarch64ABI {
         let reg = regs::xreg(0);
         let result = ABIResult::reg(ty, reg);
 
-        ABISig { params, result }
+        ABISig::new(params, result, stack_offset, call_conv)
     }
 
     fn scratch_reg() -> Reg {

@@ -4,9 +4,12 @@
 //! which validates and dispatches to the corresponding
 //! machine code emitter.
 
-use crate::codegen::CodeGen;
-use crate::masm::{DivKind, MacroAssembler, OperandSize, RegImm, RemKind};
 use crate::stack::Val;
+use crate::{
+    abi::ABI,
+    codegen::CodeGen,
+    masm::{DivKind, MacroAssembler, OperandSize, RegImm, RemKind},
+};
 use wasmparser::ValType;
 use wasmparser::VisitOperator;
 
@@ -31,6 +34,7 @@ macro_rules! def_unsupported {
         )*
     };
 
+    (emit Call $($rest:tt)*) => {};
     (emit I32Const $($rest:tt)*) => {};
     (emit I64Const $($rest:tt)*) => {};
     (emit I32Add $($rest:tt)*) => {};
@@ -54,11 +58,16 @@ macro_rules! def_unsupported {
     (emit $unsupported:tt $($rest:tt)*) => {$($rest)*};
 }
 
-impl<'a, M> VisitOperator<'a> for CodeGen<'a, M>
+impl<'a, A, M> VisitOperator<'a> for CodeGen<'a, A, M>
 where
+    A: ABI,
     M: MacroAssembler,
 {
     type Output = ();
+
+    fn visit_call(&mut self, index: u32) {
+        self.emit_call(index);
+    }
 
     fn visit_i32_const(&mut self, val: i32) {
         self.context.stack.push(Val::i32(val));

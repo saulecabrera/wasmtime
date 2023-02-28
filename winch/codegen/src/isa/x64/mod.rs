@@ -1,5 +1,5 @@
 use crate::abi::ABI;
-use crate::codegen::{CodeGen, CodeGenContext};
+use crate::codegen::{CodeGen, CodeGenContext, FuncEnv};
 use crate::frame::Frame;
 use crate::isa::x64::masm::MacroAssembler as X64Masm;
 use crate::masm::MacroAssembler;
@@ -77,18 +77,19 @@ impl TargetIsa for X64 {
         &self,
         sig: &FuncType,
         body: &FunctionBody,
+        env: &dyn FuncEnv,
         mut validator: FuncValidator<ValidatorResources>,
     ) -> Result<MachBufferFinalized<Final>> {
         let mut body = body.get_binary_reader();
         let mut masm = X64Masm::new(self.shared_flags.clone(), self.isa_flags.clone());
         let stack = Stack::new();
         let abi = abi::X64ABI::default();
-        let abi_sig = abi.sig(sig);
+        let abi_sig = abi.sig(self.winch_call_conv(), sig);
         let frame = Frame::new(&abi_sig, &mut body, &mut validator, &abi)?;
         // TODO Add in floating point bitmask
         let regalloc = RegAlloc::new(RegSet::new(ALL_GPR, 0), regs::scratch());
         let codegen_context = CodeGenContext::new(regalloc, stack, &frame);
-        let mut codegen = CodeGen::new::<abi::X64ABI>(&mut masm, codegen_context, abi_sig);
+        let mut codegen = CodeGen::new(&mut masm, &abi, codegen_context, env, abi_sig);
 
         codegen.emit(&mut body, validator)?;
 

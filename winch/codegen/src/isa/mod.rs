@@ -8,6 +8,8 @@ use std::{
 use target_lexicon::{Architecture, Triple};
 use wasmparser::{FuncType, FuncValidator, FunctionBody, ValidatorResources};
 
+use crate::codegen::FuncEnv;
+
 #[cfg(feature = "x64")]
 pub(crate) mod x64;
 
@@ -96,12 +98,30 @@ pub trait TargetIsa: Send + Sync {
         &self,
         sig: &FuncType,
         body: &FunctionBody,
+        env: &dyn FuncEnv,
         validator: FuncValidator<ValidatorResources>,
     ) -> Result<MachBufferFinalized<Final>>;
 
     /// Get the default calling convention of the underlying target triple.
     fn call_conv(&self) -> CallConv {
         CallConv::triple_default(&self.triple())
+    }
+
+    /// Winch's internal default calling convention.
+    fn winch_call_conv(&self) -> CallConv {
+        // A variation of SystemV used for all functions compiled by
+        // Winch.
+        CallConv::Fast
+    }
+
+    /// Get Wasmtime's calling convention.
+    fn wasmtime_call_conv(&self) -> CallConv {
+        match self.call_conv() {
+            CallConv::AppleAarch64 => CallConv::WasmtimeAppleAarch64,
+            CallConv::SystemV => CallConv::WasmtimeSystemV,
+            CallConv::WindowsFastcall => CallConv::WasmtimeFastcall,
+            other => unimplemented!("calling convention: {:?}", other),
+        }
     }
 
     /// Get the endianess of the underlying target triple.

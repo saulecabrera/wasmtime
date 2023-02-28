@@ -70,6 +70,8 @@ impl Masm for MacroAssembler {
         self.increment_sp(bytes);
     }
 
+    fn free_stack(&mut self, _bytes: u32) {}
+
     fn local_address(&mut self, local: &LocalSlot) -> Address {
         let (reg, offset) = local
             .addressed_from_sp()
@@ -85,11 +87,19 @@ impl Masm for MacroAssembler {
         Address::offset(reg, offset)
     }
 
+    fn address_from_sp(&self, offset: u32) -> Self::Address {
+        Address::offset(regs::rsp(), offset)
+    }
+
     fn store(&mut self, src: RegImm, dst: Address, size: OperandSize) {
         let src: Operand = src.into();
         let dst: Operand = dst.into();
 
         self.asm.mov(src, dst, size);
+    }
+
+    fn call(&mut self, callee: u32) {
+        self.asm.call(callee);
     }
 
     fn load(&mut self, src: Address, dst: Reg, size: OperandSize) {

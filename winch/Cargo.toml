@@ -16,6 +16,7 @@ winch-codegen = { workspace = true }
 winch-filetests = { workspace = true }
 winch-test-macros = { workspace = true }
 wasmtime-environ = { workspace = true }
+winch-environ = { workspace = true }
 target-lexicon = { workspace = true }
 anyhow = { workspace = true }
 wasmparser = { workspace = true }

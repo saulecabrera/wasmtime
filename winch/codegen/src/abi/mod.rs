@@ -1,4 +1,5 @@
 use crate::isa::reg::Reg;
+use cranelift_codegen::isa::CallConv;
 use smallvec::SmallVec;
 use std::ops::{Add, BitAnd, Not, Sub};
 use wasmparser::{FuncType, ValType};
@@ -13,12 +14,15 @@ pub(crate) trait ABI {
     /// The required stack alignment.
     fn stack_align(&self) -> u8;
 
+    /// The required alignment required for calls.
+    fn call_stack_align(&self) -> u8;
+
     /// The offset to the argument base, relative to the frame pointer.
     fn arg_base_offset(&self) -> u8;
 
     /// Construct the ABI-specific signature from a WebAssembly
     /// function type.
-    fn sig(&self, wasm_sig: &FuncType) -> ABISig;
+    fn sig(&self, call_conv: CallConv, wasm_sig: &FuncType) -> ABISig;
 
     /// Returns the number of bits in a word.
     fn word_bits() -> u32;
@@ -117,11 +121,37 @@ impl ABIResult {
     }
 }
 
+type ABIParams = SmallVec<[ABIArg; 6]>;
+
 /// An ABI-specific representation of a function signature.
 pub(crate) struct ABISig {
     /// Function parameters.
-    pub params: SmallVec<[ABIArg; 6]>,
+    pub params: ABIParams,
+    /// The ABI-specific result.
     pub result: ABIResult,
+    /// Stack space in bytes needed for stack arguments.
+    pub stack_bytes: u32,
+    /// The calling convention.
+    // TODO: Remove this directive once trampolines are supported.
+    #[allow(dead_code)]
+    pub call_conv: CallConv,
+}
+
+impl ABISig {
+    /// Create a new ABI signature.
+    pub fn new(
+        params: ABIParams,
+        result: ABIResult,
+        stack_bytes: u32,
+        call_conv: CallConv,
+    ) -> Self {
+        Self {
+            params,
+            result,
+            stack_bytes,
+            call_conv,
+        }
+    }
 }
 
 /// Returns the size in bytes of a given WebAssembly type.

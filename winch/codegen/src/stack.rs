@@ -2,7 +2,7 @@ use crate::isa::reg::Reg;
 use std::collections::VecDeque;
 
 /// Value definition to be used within the shadow stack.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub(crate) enum Val {
     /// I32 Constant.
     I32(i32),
@@ -109,6 +109,11 @@ impl Stack {
         }
     }
 
+    /// Get the length of the stack.
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+
     /// Push a value to the stack.
     pub fn push(&mut self, val: Val) {
         self.inner.push_back(val);
@@ -117,6 +122,16 @@ impl Stack {
     /// Peek into the top in the stack.
     pub fn peek(&self) -> Option<&Val> {
         self.inner.back()
+    }
+
+    /// Returns an iterator referencing the last n items of the stack,
+    /// in bottom-most to top-most order.
+    pub fn peekn(&self, n: usize) -> impl Iterator<Item = &Val> + '_ {
+        let len = self.len();
+        assert!(n <= len);
+
+        let partition = len - n;
+        self.inner.range(partition..)
     }
 
     /// Pops the top element of the stack, if any.
@@ -203,5 +218,17 @@ mod tests {
         assert_eq!(None, stack.pop_named_reg(reg));
         let _ = stack.pop().unwrap();
         assert_eq!(reg, stack.pop_named_reg(reg).unwrap());
+    }
+
+    #[test]
+    fn test_peekn() {
+        // 3 args, I need last two
+        let mut stack = Stack::new();
+        stack.push(Val::reg(Reg::int(2)));
+        stack.push(Val::reg(Reg::int(4)));
+        stack.push(Val::i32(6));
+
+        let last: Vec<Val> = stack.peekn(2).cloned().collect();
+        assert_eq!(last, vec![Val::reg(Reg::int(4)), Val::i32(6)]);
     }
 }

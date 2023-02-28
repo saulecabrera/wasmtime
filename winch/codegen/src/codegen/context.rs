@@ -5,6 +5,7 @@ use crate::{
     regalloc::RegAlloc,
     stack::{Stack, Val},
 };
+use std::ops::RangeBounds;
 
 /// The code generation context.
 /// The code generation context is made up of three
@@ -69,7 +70,7 @@ impl<'a> CodeGenContext<'a> {
 
         let dst = self.any_gpr(masm);
         let val = self.stack.pop().expect("a value at stack top");
-        Self::move_val_to_reg(val, dst, masm, self.frame, size);
+        self.move_val_to_reg(val, dst, masm, size);
         dst
     }
 
@@ -89,15 +90,16 @@ impl<'a> CodeGenContext<'a> {
 
         let dst = self.gpr(named, masm);
         let val = self.stack.pop().expect("a value at stack top");
-        Self::move_val_to_reg(val, dst, masm, self.frame, size);
+        self.move_val_to_reg(val, dst, masm, size);
         dst
     }
 
-    fn move_val_to_reg<M: MacroAssembler>(
+    /// Move a stack value to a given register.
+    pub fn move_val_to_reg<M: MacroAssembler>(
+        &self,
         src: Val,
         dst: Reg,
         masm: &mut M,
-        frame: &Frame,
         size: OperandSize,
     ) {
         match src {
@@ -105,7 +107,8 @@ impl<'a> CodeGenContext<'a> {
             Val::I32(imm) => masm.mov(RegImm::imm(imm.into()), RegImm::reg(dst), size),
             Val::I64(imm) => masm.mov(RegImm::imm(imm), RegImm::reg(dst), size),
             Val::Local(index) => {
-                let slot = frame
+                let slot = self
+                    .frame
                     .get_local(index)
                     .expect(&format!("valid locat at index = {}", index));
                 let addr = masm.local_address(&slot);
@@ -167,6 +170,48 @@ impl<'a> CodeGenContext<'a> {
             self.regalloc.free_gpr(src);
             self.stack.push(Val::reg(dst));
         }
+    }
+
+    /// Saves any live registers in the value stack in a particular
+    /// range defined by the caller.  This is a specialization of the
+    /// spill function; made available for cases in which spilling
+    /// locals is not required, like for example for function calls in
+    /// which locals are not reachable by the callee.
+    ///
+    /// Returns the amount of registers spilled for the given range.
+    pub fn spill_regs_in<M, R>(&mut self, masm: &mut M, range: R) -> u32
+    where
+        R: RangeBounds<usize>,
+        M: MacroAssembler,
+    {
+        let mut spilled: u32 = 0;
+        for i in self.stack.inner_mut().range_mut(range) {
+            if i.is_reg() {
+                let reg = i.get_reg();
+                let offset = masm.push(reg);
+                self.regalloc.free_gpr(reg);
+                *i = Val::Memory(offset);
+                spilled += 1;
+            }
+        }
+
+        spilled
+    }
+
+    /// Drops the last `n` elements of the stack,
+    /// freeing any registers located in that
+    /// region.
+    pub fn drop_last(&mut self, last: usize) {
+        let len = self.stack.len();
+        assert!(last <= len);
+        let truncate = self.stack.len() - last;
+
+        self.stack.inner_mut().range(truncate..).for_each(|v| {
+            if v.is_reg() {
+                self.regalloc.free_gpr(v.get_reg());
+            }
+        });
+        self.stack.inner_mut().truncate(truncate);
     }
 
     /// Spill locals and registers to memory.

@@ -5,15 +5,18 @@ use crate::{
     masm::{DivKind, OperandSize, RemKind},
 };
 use cranelift_codegen::{
+    entity::EntityRef,
+    ir::{ExternalName, Opcode, UserExternalNameRef},
     isa::x64::{
         args::{
             self, AluRmiROpcode, Amode, DivOrRemKind, ExtMode, FromWritableReg, Gpr, GprMem,
             GprMemImm, RegMem, RegMemImm, SyntheticAmode, WritableGpr,
         },
-        settings as x64_settings, EmitInfo, EmitState, Inst,
+        settings as x64_settings, CallInfo, EmitInfo, EmitState, Inst,
     },
     settings, Final, MachBuffer, MachBufferFinalized, MachInstEmit, Writable,
 };
+use smallvec::smallvec;
 
 use super::{address::Address, regs};
 
@@ -404,6 +407,20 @@ impl Assembler {
             src1: dst.into(),
             src2: src.into(),
             dst: dst.into(),
+        });
+    }
+
+    /// Direct function call to a user defined function.
+    pub fn call(&mut self, callee: u32) {
+        let dest = ExternalName::user(UserExternalNameRef::new(callee as usize));
+        self.emit(Inst::CallKnown {
+            dest,
+            info: Box::new(CallInfo {
+                uses: smallvec![],
+                defs: smallvec![],
+                clobbers: Default::default(),
+                opcode: Opcode::Call,
+            }),
         });
     }
 }

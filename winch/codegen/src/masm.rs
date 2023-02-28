@@ -87,8 +87,17 @@ pub(crate) trait MacroAssembler {
     /// Reserve stack space.
     fn reserve_stack(&mut self, bytes: u32);
 
+    /// Free stack space.
+    fn free_stack(&mut self, bytes: u32);
+
     /// Get the address of a local slot.
     fn local_address(&mut self, local: &LocalSlot) -> Self::Address;
+
+    /// Construct an address with the stack pointer as base.
+    fn address_from_sp(&self, offset: u32) -> Self::Address;
+
+    /// Emit a function call to a locally defined function.
+    fn call(&mut self, callee: u32);
 
     /// Get stack pointer offset.
     fn sp_offset(&mut self) -> u32;
