@@ -47,7 +47,9 @@ impl<'a, P: PtrSize> FuncEnv<'a, P> {
         match blockty {
             Empty => smallvec![],
             Type(ty) => smallvec![self.translation.module.convert_valtype(ty)],
-            _ => unimplemented!("multi-value"),
+            _ => {
+                unimplemented!("multi-value");
+            }
         }
     }
 }

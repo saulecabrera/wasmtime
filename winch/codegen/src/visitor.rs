@@ -8,8 +8,9 @@ use crate::codegen::CodeGen;
 use crate::codegen::ControlStackFrame;
 use crate::masm::{CmpKind, DivKind, MacroAssembler, OperandSize, RegImm, RemKind, ShiftKind};
 use crate::stack::Val;
+use crate::abi::ABI;
 use wasmparser::{BlockType, VisitOperator};
-use wasmtime_environ::{FuncIndex, WasmType};
+use wasmtime_environ::{FuncIndex, WasmType, GlobalIndex};
 
 /// A macro to define unsupported WebAssembly operators.
 ///
@@ -105,6 +106,10 @@ macro_rules! def_unsupported {
     (emit BrIf $($rest:tt)*) => {};
     (emit Return $($rest:tt)*) => {};
     (emit Unreachable $($rest:tt)*) => {};
+    (emit GlobalGet $($rest:tt)*) => {};
+    (emit GlobalSet $($rest:tt)*) => {};
+    (emit LocalTee $($rest:tt)*) => {};
+    (emit Drop $($rest:tt)*) => {};
 
     (emit $unsupported:tt $($rest:tt)*) => {$($rest)*};
 }
@@ -596,6 +601,66 @@ where
         // stack clean up.
         let outermost = &mut self.control_frames[0];
         outermost.set_as_target();
+    }
+
+    fn visit_global_get(&mut self, idx: u32) {
+        let global_index = GlobalIndex::from_u32(idx);
+        let global_ty = self.env.translation.module.globals[global_index].wasm_ty;
+
+        if let Some(defined_index) = self.env.translation.module.defined_global_index(global_index) {
+            let offset = self.env.vmoffsets.vmctx_vmglobal_definition(defined_index);
+            let addr = self.masm.address_at_reg(<M::ABI as ABI>::vmctx_reg(), offset);
+            let size = match global_ty {
+                WasmType::I32 => OperandSize::S32,
+                WasmType::I64 => OperandSize::S64,
+                _ => unreachable!()
+            };
+
+            let dst = self.context.any_gpr(self.masm);
+            self.masm.load(addr, dst, size);
+            self.context.stack.push(Val::reg(dst));
+        } else {
+            panic!("imported globals");
+        }
+    }
+
+    fn visit_global_set(&mut self, idx: u32) {
+        let global_index = GlobalIndex::from_u32(idx);
+        let global_ty = self.env.translation.module.globals[global_index].wasm_ty;
+
+        if let Some(defined_index) = self.env.translation.module.defined_global_index(global_index) {
+            let offset = self.env.vmoffsets.vmctx_vmglobal_definition(defined_index);
+            let addr = self.masm.address_at_reg(<M::ABI as ABI>::vmctx_reg(), offset);
+            let size = match global_ty {
+                WasmType::I32 => OperandSize::S32,
+                WasmType::I64 => OperandSize::S64,
+                _ => unreachable!()
+            };
+
+            let reg = self.context.pop_to_reg(self.masm, None, size);
+            let src = RegImm::reg(reg);
+            self.context.free_gpr(reg);
+            self.masm.store(src, addr, size);
+        } else {
+            panic!("imported globals");
+        }
+    }
+
+    fn visit_local_tee(&mut self, index: u32) {
+        let context = &mut self.context;
+        let frame = context.frame;
+        let slot = frame
+            .get_local(index)
+            .expect(&format!("vald local at slot = {}", index));
+        let size: OperandSize = slot.ty.into();
+        let src = self.context.pop_to_reg(self.masm, None, size);
+        let addr = self.masm.local_address(&slot);
+        self.masm.store(RegImm::reg(src), addr, size);
+        self.context.stack.push(Val::reg(src));
+    }
+
+    fn visit_drop(&mut self) {
+        self.context.drop();
     }
 
     wasmparser::for_each_operator!(def_unsupported);

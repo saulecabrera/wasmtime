@@ -246,6 +246,14 @@ impl<'a> CodeGenContext<'a> {
         self.stack.inner_mut().truncate(truncate);
     }
 
+    pub fn drop(&mut self) {
+        let top = self.stack.peek().unwrap();
+        if top.is_mem() {
+            // TODO
+        }
+        self.drop_last(1);
+    }
+
     /// Reset value and stack pointer to the given length
     /// and stack pointer offset respectively.
     pub fn reset_stack<M: MacroAssembler>(
