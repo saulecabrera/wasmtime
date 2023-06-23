@@ -188,11 +188,12 @@ impl<'a> FnCall<'a> {
     ) {
         let arg_count = self.abi_sig.params.len();
         let stack = &context.stack;
-        let mut stack_values = stack.peekn(arg_count);
-        for arg in &self.abi_sig.params {
-            let val = stack_values
-                .next()
-                .unwrap_or_else(|| panic!("expected stack value for function argument"));
+        let stack_values = stack.peekn(arg_count);
+        for (arg, val) in self.abi_sig.params.iter().zip(stack_values) {
+        // for arg in &self.abi_sig.params {
+            // let val = stack_values
+            //     .next()
+            //     .unwrap_or_else(|| panic!("expected stack value for function argument"));
             match &arg {
                 &ABIArg::Reg { ty, reg } => {
                     context.move_val_to_reg(&val, *reg, masm, (*ty).into());
