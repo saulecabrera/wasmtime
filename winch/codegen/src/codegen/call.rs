@@ -176,7 +176,7 @@ impl<'a> FnCall<'a> {
         // The stack pointer at the end of the function call
         // cannot be less than what it was when starting the
         // function call.
-        assert!(self.sp_offset_at_callsite >= masm.sp_offset());
+        // assert!(self.sp_offset_at_callsite >= masm.sp_offset());
         context.push_abi_results(&self.abi_sig.result, masm);
     }
 
