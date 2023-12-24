@@ -6,7 +6,10 @@ use crate::{
 };
 use cranelift_codegen::{
     entity::EntityRef,
-    ir::{types, ConstantPool, ExternalName, LibCall, Opcode, TrapCode, UserExternalNameRef},
+    ir::{
+        types, ConstantPool, ExternalName, LibCall, Opcode, RelSourceLoc, SourceLoc, TrapCode,
+        UserExternalNameRef,
+    },
     isa::{
         x64::{
             args::{
@@ -160,6 +163,8 @@ pub(crate) struct Assembler {
     pool: ConstantPool,
     /// Constants that will be emitted separately by the MachBuffer.
     constants: VCodeConstants,
+    /// The base location of the function.
+    base_src_loc: Option<SourceLoc>,
 }
 
 impl Assembler {
@@ -172,7 +177,19 @@ impl Assembler {
             constants: Default::default(),
             pool: ConstantPool::new(),
             isa_flags,
+            base_src_loc: None,
         }
+    }
+
+    /// Marks the start of a source location.
+    pub fn start_src_loc(&mut self, loc: SourceLoc) {
+        if self.base_src_loc.is_none() && !loc.is_default() {
+            self.base_src_loc = Some(loc);
+        }
+
+        let rel = RelSourceLoc::from_base_offset(self.base_src_loc.unwrap_or_default(), loc);
+        self.buffer.start_srcloc(rel);
+        self.emit_state.pre_sourceloc(rel);
     }
 
     /// Get a mutable reference to underlying
@@ -192,7 +209,7 @@ impl Assembler {
         let stencil = self
             .buffer
             .finish(&self.constants, self.emit_state.ctrl_plane_mut());
-        stencil.apply_base_srcloc(Default::default())
+        stencil.apply_base_srcloc(self.base_src_loc.unwrap_or_default())
     }
 
     fn emit(&mut self, inst: Inst) {

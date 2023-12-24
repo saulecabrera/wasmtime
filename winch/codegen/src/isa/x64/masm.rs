@@ -24,7 +24,8 @@ use crate::{
     masm::CalleeKind,
 };
 use cranelift_codegen::{
-    isa::x64::settings as x64_settings, settings, Final, MachBufferFinalized, MachLabel,
+    ir::SourceLoc, isa::x64::settings as x64_settings, settings, Final, MachBufferFinalized,
+    MachLabel,
 };
 
 use wasmtime_environ::{PtrSize, WasmType, WASM_PAGE_SIZE};
@@ -41,12 +42,24 @@ pub(crate) struct MacroAssembler {
     shared_flags: settings::Flags,
     /// The target pointer size.
     ptr_size: OperandSize,
+    current_src_loc: Option<u32>,
 }
 
 impl Masm for MacroAssembler {
     type Address = Address;
     type Ptr = u8;
     type ABI = X64ABI;
+
+    fn start_src_loc(&mut self, loc: SourceLoc) {
+        self.asm.start_src_loc(loc);
+        self.current_src_loc = Some(self.asm.buffer_mut().cur_offset());
+    }
+
+    fn end_src_loc(&mut self) {
+        if self.asm.buffer_mut().cur_offset() >= self.current_src_loc.unwrap() {
+            self.asm.buffer_mut().end_srcloc();
+        }
+    }
 
     fn prologue(&mut self) {
         let frame_pointer = rbp();
@@ -1000,6 +1013,7 @@ impl MacroAssembler {
             flags: isa_flags,
             shared_flags,
             ptr_size: ptr_type_from_ptr_size(ptr_size.size()).into(),
+            current_src_loc: None,
         }
     }
 

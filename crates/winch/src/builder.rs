@@ -2,17 +2,19 @@ use crate::compiler::Compiler;
 use anyhow::{bail, Result};
 use std::sync::Arc;
 use wasmtime_cranelift_shared::isa_builder::IsaBuilder;
-use wasmtime_environ::{CompilerBuilder, Setting};
+use wasmtime_environ::{CompilerBuilder, Setting, Tunables};
 use winch_codegen::{isa, TargetIsa};
 
 /// Compiler builder.
 struct Builder {
     inner: IsaBuilder<Result<Box<dyn TargetIsa>>>,
+    tunables: Tunables,
 }
 
 pub fn builder() -> Box<dyn CompilerBuilder> {
     Box::new(Builder {
         inner: IsaBuilder::new(|triple| isa::lookup(triple).map_err(|e| e.into())),
+        tunables: Tunables::default(),
     })
 }
 
@@ -39,14 +41,14 @@ impl CompilerBuilder for Builder {
     }
 
     fn set_tunables(&mut self, tunables: wasmtime_environ::Tunables) -> Result<()> {
-        let _ = tunables;
+        self.tunables = tunables;
         Ok(())
     }
 
     fn build(&self) -> Result<Box<dyn wasmtime_environ::Compiler>> {
         let isa = self.inner.build()?;
 
-        Ok(Box::new(Compiler::new(isa)))
+        Ok(Box::new(Compiler::new(isa, self.tunables.clone())))
     }
 
     fn enable_incremental_compilation(

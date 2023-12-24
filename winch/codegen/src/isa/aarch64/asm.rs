@@ -3,7 +3,7 @@
 use super::{address::Address, regs};
 use crate::{masm::OperandSize, reg::Reg};
 use cranelift_codegen::{
-    ir::MemFlags,
+    ir::{MemFlags, RelSourceLoc, SourceLoc},
     isa::aarch64::inst::{
         self,
         emit::{EmitInfo, EmitState},
@@ -31,6 +31,8 @@ pub(crate) struct Assembler {
     emit_info: EmitInfo,
     /// Emission state.
     emit_state: EmitState,
+    /// The base location of the function.
+    base_src_loc: Option<SourceLoc>,
 }
 
 impl Assembler {
@@ -40,7 +42,18 @@ impl Assembler {
             buffer: MachBuffer::<Inst>::new(),
             emit_state: Default::default(),
             emit_info: EmitInfo::new(shared_flags),
+            base_src_loc: None,
         }
+    }
+
+    /// Marks the start of a source location.
+    pub fn start_src_loc(&mut self, loc: SourceLoc) {
+        if self.base_src_loc.is_none() {
+            self.base_src_loc = Some(loc);
+        }
+        let rel = RelSourceLoc::from_base_offset(self.base_src_loc.unwrap(), loc);
+        self.emit_state.pre_sourceloc(rel);
+        self.buffer.start_srcloc(rel);
     }
 }
 

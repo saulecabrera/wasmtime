@@ -1,7 +1,10 @@
 use crate::abi::{self, align_to, LocalSlot};
 use crate::codegen::{ptr_type_from_ptr_size, CodeGenContext, HeapData, TableData};
 use crate::isa::reg::Reg;
-use cranelift_codegen::{ir::LibCall, Final, MachBufferFinalized, MachLabel};
+use cranelift_codegen::{
+    ir::{LibCall, SourceLoc},
+    Final, MachBufferFinalized, MachLabel,
+};
 use std::{fmt::Debug, ops::Range};
 use wasmtime_environ::PtrSize;
 
@@ -340,6 +343,11 @@ pub(crate) trait MacroAssembler {
 
     /// The ABI details of the target.
     type ABI: abi::ABI;
+
+    /// Records the beginning of a source location.
+    fn start_src_loc(&mut self, loc: SourceLoc);
+    /// Records the end of a source location.
+    fn end_src_loc(&mut self);
 
     /// Emit the function prologue.
     fn prologue(&mut self);

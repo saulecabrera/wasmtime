@@ -462,6 +462,7 @@ impl FrameInfo {
         //
         // Note that if the module doesn't even have an address map due to
         // compilation settings then it's expected that `instr` is `None`.
+        dbg!(&instr);
         debug_assert!(
             instr.is_some() || !compiled_module.has_address_map(),
             "failed to find instruction for {:#x}",

@@ -9,7 +9,7 @@ use crate::{
         StackSlot, TrapCode,
     },
 };
-use cranelift_codegen::{settings, Final, MachBufferFinalized, MachLabel};
+use cranelift_codegen::{ir::SourceLoc, settings, Final, MachBufferFinalized, MachLabel};
 use wasmtime_environ::PtrSize;
 
 /// Aarch64 MacroAssembler.
@@ -47,6 +47,14 @@ impl Masm for MacroAssembler {
         self.asm.stp(fp, lr, addr);
         self.asm.mov_rr(sp, fp, OperandSize::S64);
         self.move_sp_to_shadow_sp();
+    }
+
+    fn start_src_loc(&mut self, loc: SourceLoc) {
+        self.asm.start_src_loc(loc);
+    }
+
+    fn end_src_loc(&mut self) {
+        self.asm.buffer_mut().end_srcloc();
     }
 
     fn epilogue(&mut self, locals_size: u32) {
