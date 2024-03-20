@@ -9,7 +9,10 @@ use crate::{
         StackSlot, TrapCode, TruncKind,
     },
 };
-use cranelift_codegen::{settings, Final, MachBufferFinalized, MachLabel};
+use cranelift_codegen::{
+    ir::{RelSourceLoc, SourceLoc},
+    settings, Final, MachBufferFinalized, MachLabel,
+};
 use wasmtime_environ::PtrSize;
 
 /// Aarch64 MacroAssembler.
@@ -201,8 +204,8 @@ impl Masm for MacroAssembler {
         SPOffset::from_u32(self.sp_offset)
     }
 
-    fn finalize(self) -> MachBufferFinalized<Final> {
-        self.asm.finalize()
+    fn finalize(self, base: Option<SourceLoc>) -> MachBufferFinalized<Final> {
+        self.asm.finalize(base)
     }
 
     fn mov(&mut self, src: RegImm, dst: Reg, size: OperandSize) {
@@ -529,6 +532,14 @@ impl Masm for MacroAssembler {
 
     fn trapif(&mut self, _cc: IntCmpKind, _code: TrapCode) {
         todo!()
+    }
+
+    fn start_source_loc(&mut self, loc: RelSourceLoc) {
+        self.asm.buffer_mut().start_srcloc(loc);
+    }
+
+    fn end_source_loc(&mut self) {
+        self.asm.buffer_mut().end_srcloc();
     }
 }
 

@@ -16,6 +16,8 @@ use wasmtime_environ::{
     FUNCREF_MASK,
 };
 
+use cranelift_codegen::ir::{RelSourceLoc, SourceLoc};
+
 mod context;
 pub(crate) use context::*;
 mod env;
@@ -51,6 +53,9 @@ where
     // NB The 64 is set arbitrarily, we can adjust it as
     // we see fit.
     pub control_frames: SmallVec<[ControlStackFrame; 64]>,
+
+    /// The base source location.
+    pub base: Option<SourceLoc>,
 }
 
 impl<'a, 'translation, 'data, M> CodeGen<'a, 'translation, 'data, M>
@@ -68,6 +73,7 @@ where
             context,
             masm,
             env,
+            base: None,
             control_frames: Default::default(),
         }
     }
@@ -85,6 +91,15 @@ where
         Ok(())
     }
 
+    /// Derives a [RelSourceLoc] from a [SourceLoc].
+    pub fn source_loc_from(&mut self, loc: SourceLoc) -> RelSourceLoc {
+        if self.base.is_none() && !loc.is_default() {
+            self.base = Some(loc);
+        }
+
+        RelSourceLoc::from_base_offset(self.base.unwrap_or_default(), loc)
+    }
+
     fn emit_start(&mut self) -> Result<()> {
         let vmctx = self
             .sig
@@ -93,6 +108,8 @@ where
             .expect("VMContext argument")
             .unwrap_reg()
             .into();
+
+        self.masm.start_source_loc(Default::default());
 
         // We need to use the vmctx paramter before pinning it for stack checking, and we don't
         // have any callee save registers in the winch calling convention.
@@ -103,6 +120,8 @@ where
             .mov(vmctx.into(), vmctx!(M), self.env.ptr_type().into());
 
         self.masm.reserve_stack(self.context.frame.locals_size);
+
+        self.masm.end_source_loc();
 
         // Once we have emitted the epilogue and reserved stack space for the locals, we push the
         // base control flow block.
@@ -189,12 +208,16 @@ where
 
         while !body.eof() {
             let offset = body.original_position();
-            body.visit_operator(&mut ValidateThenVisit(validator.visitor(offset), self))??;
+            body.visit_operator(&mut ValidateThenVisit(
+                validator.visitor(offset),
+                self,
+                offset,
+            ))??;
         }
         validator.finish(body.original_position())?;
         return Ok(());
 
-        struct ValidateThenVisit<'a, T, U>(T, &'a mut U);
+        struct ValidateThenVisit<'a, T, U>(T, &'a mut U, usize);
 
         macro_rules! validate_then_visit {
             ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
@@ -208,7 +231,11 @@ where
                         // determine if reachability should be restored.
                         let visit_when_unreachable = visit_op_when_unreachable(Operator::$op $({ $($arg: $arg.clone()),* })?);
                         if self.1.is_reachable() || visit_when_unreachable  {
-                            Ok(self.1.$visit($($($arg),*)?))
+                            let location = self.1.to_rel_source_loc(SourceLoc::new(self.2 as u32));
+                            self.1.start(location);
+                            let res = Ok(self.1.$visit($($($arg),*)?));
+                            self.1.end();
+                            res
                         } else {
                             Ok(U::Output::default())
                         }
@@ -231,6 +258,13 @@ where
             fn is_reachable(&self) -> bool;
         }
 
+        /// Trait to map source locations to machine code.
+        trait SourceLocator {
+            fn to_rel_source_loc(&mut self, loc: SourceLoc) -> RelSourceLoc;
+            fn start(&mut self, loc: RelSourceLoc);
+            fn end(&mut self);
+        }
+
         impl<'a, 'translation, 'data, M: MacroAssembler> ReachableState
             for CodeGen<'a, 'translation, 'data, M>
         {
@@ -239,10 +273,26 @@ where
             }
         }
 
+        impl<'a, 'translation, 'data, M: MacroAssembler> SourceLocator
+            for CodeGen<'a, 'translation, 'data, M>
+        {
+            fn to_rel_source_loc(&mut self, loc: SourceLoc) -> RelSourceLoc {
+                self.source_loc_from(loc)
+            }
+
+            fn start(&mut self, loc: RelSourceLoc) {
+                self.masm.start_source_loc(loc);
+            }
+
+            fn end(&mut self) {
+                self.masm.end_source_loc();
+            }
+        }
+
         impl<'a, T, U> VisitOperator<'a> for ValidateThenVisit<'_, T, U>
         where
             T: VisitOperator<'a, Output = wasmparser::Result<()>>,
-            U: VisitOperator<'a> + ReachableState,
+            U: VisitOperator<'a> + ReachableState + SourceLocator,
             U::Output: Default,
         {
             type Output = Result<U::Output>;
@@ -301,6 +351,7 @@ where
         // to the stack); so when reaching the end, we pop them taking as
         // reference the current function's signature.
         let base = SPOffset::from_u32(self.context.frame.locals_size);
+        self.masm.start_source_loc(Default::default());
         if self.context.reachable {
             ControlStackFrame::pop_abi_results_impl(
                 &mut self.sig.results,
@@ -318,6 +369,7 @@ where
         debug_assert_eq!(self.context.stack.len(), 0);
         self.masm.free_stack(self.context.frame.locals_size);
         self.masm.epilogue(&[]);
+        self.masm.end_source_loc();
         Ok(())
     }
 

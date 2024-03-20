@@ -136,8 +136,9 @@ impl TargetIsa for X64 {
         let mut codegen = CodeGen::new(&mut masm, codegen_context, env, abi_sig);
 
         codegen.emit(&mut body, validator)?;
+        let base = codegen.base;
 
-        Ok(masm.finalize())
+        Ok(masm.finalize(base))
     }
 
     fn text_section_builder(&self, num_funcs: usize) -> Box<dyn TextSectionBuilder> {
@@ -177,7 +178,7 @@ impl TargetIsa for X64 {
             WasmToNative => trampoline.emit_wasm_to_native(ty)?,
         }
 
-        Ok(masm.finalize())
+        Ok(masm.finalize(Default::default()))
     }
 
     fn emit_unwind_info(

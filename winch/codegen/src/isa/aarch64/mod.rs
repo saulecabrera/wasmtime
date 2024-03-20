@@ -122,7 +122,8 @@ impl TargetIsa for Aarch64 {
         let mut codegen = CodeGen::new(&mut masm, codegen_context, env, abi_sig);
 
         codegen.emit(&mut body, validator)?;
-        Ok(masm.finalize())
+        let base = codegen.base;
+        Ok(masm.finalize(base))
     }
 
     fn text_section_builder(&self, num_funcs: usize) -> Box<dyn TextSectionBuilder> {
