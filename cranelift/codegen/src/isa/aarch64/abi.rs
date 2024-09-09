@@ -150,11 +150,16 @@ impl ABIMachineSpec for AArch64MachineDeps {
             // we can return values in up to 8 integer and
             // 8 vector registers at once.
             ArgsOrRets::Rets => {
-                (8, 16) // x0-x7 and v0-v7
+                if call_conv == isa::CallConv::Winch {
+                    (1, 1)
+                } else {
+                    (8, 16) // x0-x7 and v0-v7
+                }
             }
         };
 
-        for param in params {
+        for (idx, param) in params.iter().enumerate() {
+            let last_param = (params.len() - 1) == idx;
             if is_apple_cc && param.value_type == types::F128 && !flags.enable_llvm_abi_extensions()
             {
                 panic!(
@@ -284,12 +289,19 @@ impl ABIMachineSpec for AArch64MachineDeps {
                     RegClass::Vector => unreachable!(),
                 };
 
-                if *next_reg < max_per_class_reg_vals && remaining_reg_vals > 0 {
+                let is_winch = call_conv == isa::CallConv::Winch;
+                let is_rets = args_or_rets == ArgsOrRets::Rets;
+
+                if (is_winch && is_rets && last_param)
+                    || (is_winch && !is_rets)
+                    || (!is_winch && *next_reg < max_per_class_reg_vals && remaining_reg_vals > 0)
+                {
                     let reg = match rc {
                         RegClass::Int => xreg(*next_reg),
                         RegClass::Float => vreg(*next_reg),
                         RegClass::Vector => unreachable!(),
                     };
+
                     // Overlay Z-regs on V-regs for parameter passing.
                     let ty = if param.value_type.is_dynamic_vector() {
                         dynamic_to_fixed(param.value_type)
@@ -313,7 +325,9 @@ impl ABIMachineSpec for AArch64MachineDeps {
             // Compute the stack slot's size.
             let size = (ty_bits(param.value_type) / 8) as u32;
 
-            let size = if is_apple_cc {
+            let size = if is_apple_cc
+                || (call_conv == isa::CallConv::Winch && args_or_rets == ArgsOrRets::Rets)
+            {
                 // MacOS aarch64 allows stack slots with
                 // sizes less than 8 bytes. They still need to be
                 // properly aligned on their natural data alignment,
@@ -325,9 +339,14 @@ impl ABIMachineSpec for AArch64MachineDeps {
                 std::cmp::max(size, 8)
             };
 
-            // Align the stack slot.
-            debug_assert!(size.is_power_of_two());
-            next_stack = align_to(next_stack, size);
+            let size = if call_conv == isa::CallConv::Winch && args_or_rets == ArgsOrRets::Rets {
+                size
+            } else {
+                // Align the stack slot.
+                debug_assert!(size.is_power_of_two());
+                next_stack = align_to(next_stack, size);
+                size
+            };
 
             let slots = reg_types
                 .iter()
@@ -385,6 +404,21 @@ impl ABIMachineSpec for AArch64MachineDeps {
         } else {
             None
         };
+
+        if call_conv == isa::CallConv::Winch && args_or_rets == ArgsOrRets::Rets {
+            for arg in args.args_mut() {
+                if let ABIArg::Slots { slots, .. } = arg {
+                    for slot in slots.iter_mut() {
+                        if let ABIArgSlot::Stack { offset, ty, .. } = slot {
+                            let size = i64::from(ty.bytes());
+                            *offset = i64::from(next_stack) - *offset - size;
+                        }
+                    }
+                } else {
+                    unreachable!("Winch cannot handle {arg:?}");
+                }
+            }
+        }
 
         next_stack = align_to(next_stack, 16);
 

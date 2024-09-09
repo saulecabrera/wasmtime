@@ -113,12 +113,12 @@ impl Masm for MacroAssembler {
         Address::offset(reg, offset as i64)
     }
 
-    fn address_from_sp(&self, _offset: SPOffset) -> Self::Address {
-        todo!()
+    fn address_from_sp(&self, offset: SPOffset) -> Self::Address {
+        Address::from_shadow_sp((self.sp_offset - offset.as_u32()) as i64)
     }
 
-    fn address_at_sp(&self, _offset: SPOffset) -> Self::Address {
-        todo!()
+    fn address_at_sp(&self, offset: SPOffset) -> Self::Address {
+        Address::from_shadow_sp(offset.as_u32() as i64)
     }
 
     fn address_at_vmctx(&self, _offset: u32) -> Self::Address {
@@ -135,11 +135,20 @@ impl Masm for MacroAssembler {
                 let imm = match v {
                     I::I32(v) => v as u64,
                     I::I64(v) => v,
+                    I::F32(v) => v as u64,
+                    I::F64(v) => v,
                     _ => unreachable!(),
                 };
                 let scratch = regs::scratch();
                 self.asm.load_constant(imm, scratch);
-                scratch
+
+                if v.is_float() {
+                    self.asm
+                        .mov_to_fpu(scratch, regs::float_scratch(), v.size());
+                    regs::float_scratch()
+                } else {
+                    scratch
+                }
             }
             RegImm::Reg(reg) => reg,
         };
@@ -187,8 +196,10 @@ impl Masm for MacroAssembler {
         todo!()
     }
 
-    fn pop(&mut self, _dst: Reg, _size: OperandSize) {
-        todo!()
+    fn pop(&mut self, dst: Reg, size: OperandSize) {
+        let addr = self.address_from_sp(SPOffset::from_u32(self.sp_offset));
+        self.asm.uload(addr, dst, size);
+        self.free_stack(size.bytes());
     }
 
     fn sp_offset(&self) -> SPOffset {

@@ -166,7 +166,6 @@ impl X64ABI {
             // Stack slots for parameters are aligned to a fixed slot size,
             // in the case of x64, 8 bytes. Except if they are v128 values,
             // in which case they use 16 bytes.
-            // Stack slots for returns are type-size aligned.
             let next_stack = if params_or_returns == ParamsOrReturns::Params {
                 let alignment = if *ty == WasmValType::V128 {
                     ty_size
