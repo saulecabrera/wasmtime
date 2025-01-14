@@ -319,9 +319,7 @@ impl Compiler {
                     || cfg!(target_arch = "riscv64")
                     || cfg!(target_arch = "s390x")
             }
-            Compiler::Winch => {
-                cfg!(target_arch = "x86_64")
-            }
+            Compiler::Winch => cfg!(target_arch = "x86_64") || cfg!(target_arch = "aarch64"),
             Compiler::CraneliftPulley => true,
         }
     }
@@ -505,9 +503,24 @@ impl WastTest {
 
             // SIMD on Winch requires AVX instructions.
             #[cfg(target_arch = "x86_64")]
-            if !(std::is_x86_feature_detected!("avx") && std::is_x86_feature_detected!("avx2")) {
-                let unsupported = ["spec_testsuite/simd_align.wast"];
+            {
+                if !(std::is_x86_feature_detected!("avx") && std::is_x86_feature_detected!("avx2"))
+                {
+                    let unsupported = ["spec_testsuite/simd_align.wast"];
+                    if unsupported.iter().any(|part| self.path.ends_with(part)) {
+                        return true;
+                    }
+                }
+            }
 
+            // `TestConfig` enables reference types and SIMD by default for the
+            // MVP spec tests.
+            //
+            // We need to gate test that would fail in aarch64 for those
+            // proposals.
+            #[cfg(target_arch = "aarch64")]
+            {
+                let unsupported = ["spec_testsuite/simd_align.wast"];
                 if unsupported.iter().any(|part| self.path.ends_with(part)) {
                     return true;
                 }

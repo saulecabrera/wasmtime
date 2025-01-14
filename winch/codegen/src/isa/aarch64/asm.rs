@@ -137,20 +137,19 @@ impl Assembler {
     }
 
     /// Store a pair of registers.
-    pub fn stp(&mut self, xt1: Reg, xt2: Reg, addr: Address) {
+    pub fn stp(&mut self, xt1: Reg, xt2: Reg, addr: Address, flags: MemFlags) {
         let mem: PairAMode = addr.try_into().unwrap();
         self.emit(Inst::StoreP64 {
             rt: xt1.into(),
             rt2: xt2.into(),
             mem,
-            flags: MemFlags::trusted(),
+            flags,
         });
     }
 
     /// Store a register.
-    pub fn str(&mut self, reg: Reg, addr: Address, size: OperandSize) {
+    pub fn str(&mut self, reg: Reg, addr: Address, size: OperandSize, flags: MemFlags) {
         let mem: AMode = addr.try_into().unwrap();
-        let flags = MemFlags::trusted();
 
         use OperandSize::*;
         let inst = match (reg.is_int(), size) {
@@ -195,21 +194,27 @@ impl Assembler {
     }
 
     /// Load a signed register.
-    pub fn sload(&mut self, addr: Address, rd: WritableReg, size: OperandSize) {
-        self.ldr(addr, rd, size, true);
+    pub fn sload(&mut self, addr: Address, rd: WritableReg, size: OperandSize, flags: MemFlags) {
+        self.ldr(addr, rd, size, true, flags);
     }
 
     /// Load an unsigned register.
-    pub fn uload(&mut self, addr: Address, rd: WritableReg, size: OperandSize) {
-        self.ldr(addr, rd, size, false);
+    pub fn uload(&mut self, addr: Address, rd: WritableReg, size: OperandSize, flags: MemFlags) {
+        self.ldr(addr, rd, size, false, flags);
     }
 
     /// Load address into a register.
-    fn ldr(&mut self, addr: Address, rd: WritableReg, size: OperandSize, signed: bool) {
+    fn ldr(
+        &mut self,
+        addr: Address,
+        rd: WritableReg,
+        size: OperandSize,
+        signed: bool,
+        flags: MemFlags,
+    ) {
         use OperandSize::*;
         let writable_reg = rd.map(Into::into);
         let mem: AMode = addr.try_into().unwrap();
-        let flags = MemFlags::trusted();
 
         let inst = match (rd.to_reg().is_int(), signed, size) {
             (_, false, S8) => Inst::ULoad8 {
@@ -268,7 +273,7 @@ impl Assembler {
     }
 
     /// Load a pair of registers.
-    pub fn ldp(&mut self, xt1: Reg, xt2: Reg, addr: Address) {
+    pub fn ldp(&mut self, xt1: Reg, xt2: Reg, addr: Address, flags: MemFlags) {
         let writable_xt1 = Writable::from_reg(xt1.into());
         let writable_xt2 = Writable::from_reg(xt2.into());
         let mem = addr.try_into().unwrap();
@@ -277,7 +282,7 @@ impl Assembler {
             rt: writable_xt1,
             rt2: writable_xt2,
             mem,
-            flags: MemFlags::trusted(),
+            flags,
         });
     }
 

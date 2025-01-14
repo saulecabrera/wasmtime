@@ -14,7 +14,7 @@ use crate::{
     masm::{
         CalleeKind, DivKind, ExtendKind, FloatCmpKind, Imm as I, IntCmpKind, LoadKind,
         MacroAssembler as Masm, MemOpKind, MulWideKind, OperandSize, RegImm, RemKind, RoundingMode,
-        SPOffset, ShiftKind, StackSlot, TrapCode, TruncKind,
+        SPOffset, ShiftKind, StackSlot, TrapCode, TruncKind, TRUSTED_FLAGS, UNTRUSTED_FLAGS,
     },
     stack::TypedReg,
 };
@@ -60,7 +60,7 @@ impl Masm for MacroAssembler {
         let sp = regs::sp();
         let addr = Address::pre_indexed_from_sp(-16);
 
-        self.asm.stp(fp, lr, addr);
+        self.asm.stp(fp, lr, addr, TRUSTED_FLAGS);
         self.asm.mov_rr(sp, writable!(fp), OperandSize::S64);
         self.move_sp_to_shadow_sp();
         Ok(())
@@ -78,7 +78,7 @@ impl Masm for MacroAssembler {
         let fp = regs::fp();
         let addr = Address::post_indexed_from_sp(16);
 
-        self.asm.ldp(fp, lr, addr);
+        self.asm.ldp(fp, lr, addr, TRUSTED_FLAGS);
         self.asm.ret();
         Ok(())
     }
@@ -171,12 +171,12 @@ impl Masm for MacroAssembler {
             RegImm::Reg(reg) => reg,
         };
 
-        self.asm.str(src, dst, size);
+        self.asm.str(src, dst, size, TRUSTED_FLAGS);
         Ok(())
     }
 
     fn wasm_store(&mut self, src: Reg, dst: Self::Address, size: OperandSize) -> Result<()> {
-        self.asm.str(src, dst, size);
+        self.asm.str(src, dst, size, UNTRUSTED_FLAGS);
         Ok(())
     }
 
@@ -202,7 +202,7 @@ impl Masm for MacroAssembler {
     }
 
     fn load(&mut self, src: Address, dst: WritableReg, size: OperandSize) -> Result<()> {
-        self.asm.uload(src, dst, size);
+        self.asm.uload(src, dst, size, TRUSTED_FLAGS);
         Ok(())
     }
 
@@ -220,14 +220,14 @@ impl Masm for MacroAssembler {
     ) -> Result<()> {
         match op_kind {
             MemOpKind::Normal => match kind {
-                LoadKind::Simple => self.asm.uload(src, dst, size),
+                LoadKind::Simple => self.asm.uload(src, dst, size, UNTRUSTED_FLAGS),
                 LoadKind::Splat => bail!(CodeGenError::UnimplementedWasmLoadKind),
                 LoadKind::ScalarExtend(extend_kind) => {
                     if extend_kind.signed() {
-                        self.asm.sload(src, dst, size)
+                        self.asm.sload(src, dst, size, UNTRUSTED_FLAGS)
                     } else {
                         // unlike x64, unused bits are set to zero so we don't need to extend
-                        self.asm.uload(src, dst, size)
+                        self.asm.uload(src, dst, size, UNTRUSTED_FLAGS)
                     }
                 }
                 LoadKind::VectorExtend(_vector_extend_kind) => {
@@ -240,13 +240,13 @@ impl Masm for MacroAssembler {
     }
 
     fn load_addr(&mut self, src: Self::Address, dst: WritableReg, size: OperandSize) -> Result<()> {
-        self.asm.uload(src, dst, size);
+        self.asm.uload(src, dst, size, TRUSTED_FLAGS);
         Ok(())
     }
 
     fn pop(&mut self, dst: WritableReg, size: OperandSize) -> Result<()> {
         let addr = self.address_from_sp(SPOffset::from_u32(self.sp_offset))?;
-        self.asm.uload(addr, dst, size);
+        self.asm.uload(addr, dst, size, TRUSTED_FLAGS);
         self.free_stack(size.bytes())
     }
 
@@ -683,7 +683,7 @@ impl Masm for MacroAssembler {
     fn push(&mut self, reg: Reg, size: OperandSize) -> Result<StackSlot> {
         self.reserve_stack(size.bytes())?;
         let address = self.address_from_sp(SPOffset::from_u32(self.sp_offset))?;
-        self.asm.str(reg, address, size);
+        self.asm.str(reg, address, size, TRUSTED_FLAGS);
 
         Ok(StackSlot {
             offset: SPOffset::from_u32(self.sp_offset),
