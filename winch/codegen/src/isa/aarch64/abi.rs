@@ -20,6 +20,16 @@ impl ABI for Aarch64ABI {
     }
 
     fn arg_base_offset() -> u8 {
+        // Two 8-byte slots:
+        // * One for link register
+        // * One for the frame pointer
+        // ┌──────────┬───────── Argument base
+        // │   LR     │
+        // │          │
+        // ├──────────┼
+        // │          │
+        // │   FP     │
+        // └──────────┴ -> 16
         16
     }
 

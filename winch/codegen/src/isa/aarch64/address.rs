@@ -67,6 +67,17 @@ impl Address {
         }
     }
 
+    /// Unwraps the base and offset of the address.
+    ///
+    /// # Panics
+    /// This function panics if the addressing mode is stack pointer based.
+    pub fn unwrap_base_and_offset(&self) -> (Reg, i64) {
+        match &self {
+            Self::Offset { base, offset } => (*base, *offset),
+            _ => panic!("Direct manipulation of the stack pointer not allowed in this context"),
+        }
+    }
+
     /// Create register and arbitrary offset addressing mode.
     pub fn offset(base: Reg, offset: i64) -> Self {
         // This exists to enforce the sp vs shadow_sp invariant, the

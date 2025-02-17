@@ -1,0 +1,386 @@
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Wasmtime Compiler Explorer</title>
+    <style>
+      * {
+  margin: 0;
+  padding: 0;
+}
+
+.hbox {
+  display: flex;
+  flex-direction: row;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+}
+
+#wat {
+  flex: 1;
+  height: 100%;
+  overflow: scroll;
+}
+
+#clif {
+  flex: 1;
+  height: 100%;
+  overflow: scroll;
+}
+
+#asm {
+  flex: 1;
+  height: 100%;
+  overflow: scroll;
+}
+
+    </style>
+  </head>
+  <body class="hbox">
+    <pre id="wat"></pre>
+        
+    <div id="asm"></div>
+    <script>
+      window.WAT = {"chunks":[{"wasm_offset":0,"wat":"(module\n"},{"wasm_offset":11,"wat":"  (type $check (;0;) (func (result i32)))\n"},{"wasm_offset":23,"wat":"  (table (;0;) 2 2 funcref)\n"},{"wasm_offset":30,"wat":"  (export \"main\" (func 1))\n"},{"wasm_offset":40,"wat":"  (elem (;0;) (table 0) (i32.const 0) func $func $func)\n"},{"wasm_offset":53,"wat":"  (func $func (;0;) (type $check) (result i32)\n"},{"wasm_offset":54,"wat":"    i32.const 0\n"},{"wasm_offset":null,"wat":"  )\n"},{"wasm_offset":58,"wat":"  (func (;1;) (type $check) (result i32)\n"},{"wasm_offset":59,"wat":"    block (result i32) ;; label = @1\n"},{"wasm_offset":61,"wat":"      i32.const 1\n"},{"wasm_offset":63,"wat":"      call_indirect (type $check)\n"},{"wasm_offset":66,"wat":"    end\n"},{"wasm_offset":null,"wat":"  )\n"},{"wasm_offset":null,"wat":")\n"},{"wasm_offset":94,"wat":""}]};
+        
+      window.ASM = {"functions":[{"func_index":0,"name":"func","demangled_name":"func","instructions":[{"wasm_offset":null,"address":0,"bytes":[253,123,191,169],"mnemonic":"stp","operands":"x29, x30, [sp, #-0x10]!"},{"wasm_offset":null,"address":4,"bytes":[253,3,0,145],"mnemonic":"mov","operands":"x29, sp"},{"wasm_offset":null,"address":8,"bytes":[252,15,31,248],"mnemonic":"str","operands":"x28, [sp, #-0x10]!"},{"wasm_offset":null,"address":12,"bytes":[252,3,0,145],"mnemonic":"mov","operands":"x28, sp"},{"wasm_offset":null,"address":16,"bytes":[233,3,0,170],"mnemonic":"mov","operands":"x9, x0"},{"wasm_offset":null,"address":20,"bytes":[156,67,0,209],"mnemonic":"sub","operands":"x28, x28, #0x10"},{"wasm_offset":null,"address":24,"bytes":[159,3,0,145],"mnemonic":"mov","operands":"sp, x28"},{"wasm_offset":null,"address":28,"bytes":[128,131,0,248],"mnemonic":"stur","operands":"x0, [x28, #8]"},{"wasm_offset":null,"address":32,"bytes":[129,3,0,248],"mnemonic":"stur","operands":"x1, [x28]"},{"wasm_offset":56,"address":36,"bytes":[16,0,128,210],"mnemonic":"mov","operands":"x16, #0"},{"wasm_offset":56,"address":40,"bytes":[224,3,16,42],"mnemonic":"mov","operands":"w0, w16"},{"wasm_offset":null,"address":44,"bytes":[156,67,0,145],"mnemonic":"add","operands":"x28, x28, #0x10"},{"wasm_offset":null,"address":48,"bytes":[159,3,0,145],"mnemonic":"mov","operands":"sp, x28"},{"wasm_offset":null,"address":52,"bytes":[252,7,65,248],"mnemonic":"ldr","operands":"x28, [sp], #0x10"},{"wasm_offset":null,"address":56,"bytes":[253,123,193,168],"mnemonic":"ldp","operands":"x29, x30, [sp], #0x10"},{"wasm_offset":null,"address":60,"bytes":[192,3,95,214],"mnemonic":"ret","operands":""}]},{"func_index":1,"name":null,"demangled_name":null,"instructions":[{"wasm_offset":null,"address":64,"bytes":[253,123,191,169],"mnemonic":"stp","operands":"x29, x30, [sp, #-0x10]!"},{"wasm_offset":null,"address":68,"bytes":[253,3,0,145],"mnemonic":"mov","operands":"x29, sp"},{"wasm_offset":null,"address":72,"bytes":[252,15,31,248],"mnemonic":"str","operands":"x28, [sp, #-0x10]!"},{"wasm_offset":null,"address":76,"bytes":[252,3,0,145],"mnemonic":"mov","operands":"x28, sp"},{"wasm_offset":null,"address":80,"bytes":[233,3,0,170],"mnemonic":"mov","operands":"x9, x0"},{"wasm_offset":null,"address":84,"bytes":[156,67,0,209],"mnemonic":"sub","operands":"x28, x28, #0x10"},{"wasm_offset":null,"address":88,"bytes":[159,3,0,145],"mnemonic":"mov","operands":"sp, x28"},{"wasm_offset":null,"address":92,"bytes":[128,131,0,248],"mnemonic":"stur","operands":"x0, [x28, #8]"},{"wasm_offset":null,"address":96,"bytes":[129,3,0,248],"mnemonic":"stur","operands":"x1, [x28]"},{"wasm_offset":63,"address":100,"bytes":[48,0,128,210],"mnemonic":"mov","operands":"x16, #1"},{"wasm_offset":63,"address":104,"bytes":[225,3,16,42],"mnemonic":"mov","operands":"w1, w16"},{"wasm_offset":63,"address":108,"bytes":[226,3,9,170],"mnemonic":"mov","operands":"x2, x9"},{"wasm_offset":63,"address":112,"bytes":[67,0,69,248],"mnemonic":"ldur","operands":"x3, [x2, #0x50]"},{"wasm_offset":63,"address":116,"bytes":[63,96,35,235],"mnemonic":"cmp","operands":"x1, x3, uxtx"},{"wasm_offset":63,"address":120,"bytes":[66,6,0,84],"mnemonic":"b.hs","operands":"#0x140"},{"wasm_offset":63,"address":124,"bytes":[240,3,1,170],"mnemonic":"mov","operands":"x16, x1"},{"wasm_offset":63,"address":128,"bytes":[16,1,128,210],"mnemonic":"mov","operands":"x16, #8"},{"wasm_offset":63,"address":132,"bytes":[16,126,16,155],"mnemonic":"mul","operands":"x16, x16, x16"},{"wasm_offset":63,"address":136,"bytes":[66,128,68,248],"mnemonic":"ldur","operands":"x2, [x2, #0x48]"},{"wasm_offset":63,"address":140,"bytes":[228,3,2,170],"mnemonic":"mov","operands":"x4, x2"},{"wasm_offset":63,"address":144,"bytes":[66,96,48,139],"mnemonic":"add","operands":"x2, x2, x16, uxtx"},{"wasm_offset":63,"address":148,"bytes":[63,96,35,107],"mnemonic":"cmp","operands":"w1, w3, uxtx"},{"wasm_offset":63,"address":152,"bytes":[130,32,132,154],"mnemonic":"csel","operands":"x2, x4, x4, hs"},{"wasm_offset":63,"address":156,"bytes":[64,0,64,248],"mnemonic":"ldur","operands":"x0, [x2]"},{"wasm_offset":63,"address":160,"bytes":[31,0,0,234],"mnemonic":"tst","operands":"x0, x0"},{"wasm_offset":63,"address":164,"bytes":[1,2,0,84],"mnemonic":"b.ne","operands":"#0xe4"},{"wasm_offset":63,"address":168,"bytes":[1,0,0,20],"mnemonic":"b","operands":"#0xac"},{"wasm_offset":63,"address":172,"bytes":[156,19,0,209],"mnemonic":"sub","operands":"x28, x28, #4"},{"wasm_offset":63,"address":176,"bytes":[159,3,0,145],"mnemonic":"mov","operands":"sp, x28"},{"wasm_offset":63,"address":180,"bytes":[129,3,0,184],"mnemonic":"stur","operands":"w1, [x28]"},{"wasm_offset":63,"address":184,"bytes":[156,51,0,209],"mnemonic":"sub","operands":"x28, x28, #0xc"},{"wasm_offset":63,"address":188,"bytes":[159,3,0,145],"mnemonic":"mov","operands":"sp, x28"},{"wasm_offset":63,"address":192,"bytes":[224,3,9,170],"mnemonic":"mov","operands":"x0, x9"},{"wasm_offset":63,"address":196,"bytes":[16,0,128,210],"mnemonic":"mov","operands":"x16, #0"},{"wasm_offset":63,"address":200,"bytes":[225,3,16,42],"mnemonic":"mov","operands":"w1, w16"},{"wasm_offset":63,"address":204,"bytes":[130,195,64,184],"mnemonic":"ldur","operands":"w2, [x28, #0xc]"},{"wasm_offset":63,"address":208,"bytes":[188,0,0,148],"mnemonic":"bl","operands":"#0x3c0"},{"wasm_offset":63,"address":212,"bytes":[156,51,0,145],"mnemonic":"add","operands":"x28, x28, #0xc"},{"wasm_offset":63,"address":216,"bytes":[156,19,0,145],"mnemonic":"add","operands":"x28, x28, #4"},{"wasm_offset":63,"address":220,"bytes":[137,131,64,248],"mnemonic":"ldur","operands":"x9, [x28, #8]"},{"wasm_offset":63,"address":224,"bytes":[2,0,0,20],"mnemonic":"b","operands":"#0xe8"},{"wasm_offset":63,"address":228,"bytes":[0,248,127,146],"mnemonic":"and","operands":"x0, x0, #0xfffffffffffffffe"},{"wasm_offset":63,"address":232,"bytes":[224,2,0,180],"mnemonic":"cbz","operands":"x0, #0x144"},{"wasm_offset":63,"address":236,"bytes":[48,1,68,248],"mnemonic":"ldur","operands":"x16, [x9, #0x40]"},{"wasm_offset":63,"address":240,"bytes":[1,2,64,184],"mnemonic":"ldur","operands":"w1, [x16]"},{"wasm_offset":63,"address":244,"bytes":[2,0,65,184],"mnemonic":"ldur","operands":"w2, [x0, #0x10]"},{"wasm_offset":63,"address":248,"bytes":[63,96,34,107],"mnemonic":"cmp","operands":"w1, w2, uxtx"},{"wasm_offset":63,"address":252,"bytes":[97,2,0,84],"mnemonic":"b.ne","operands":"#0x148"},{"wasm_offset":63,"address":256,"bytes":[156,35,0,209],"mnemonic":"sub","operands":"x28, x28, #8"},{"wasm_offset":63,"address":260,"bytes":[159,3,0,145],"mnemonic":"mov","operands":"sp, x28"},{"wasm_offset":63,"address":264,"bytes":[128,3,0,248],"mnemonic":"stur","operands":"x0, [x28]"},{"wasm_offset":63,"address":268,"bytes":[130,3,64,248],"mnemonic":"ldur","operands":"x2, [x28]"},{"wasm_offset":63,"address":272,"bytes":[156,35,0,145],"mnemonic":"add","operands":"x28, x28, #8"},{"wasm_offset":63,"address":276,"bytes":[68,128,65,248],"mnemonic":"ldur","operands":"x4, [x2, #0x18]"},{"wasm_offset":63,"address":280,"bytes":[67,128,64,248],"mnemonic":"ldur","operands":"x3, [x2, #8]"},{"wasm_offset":63,"address":284,"bytes":[224,3,4,170],"mnemonic":"mov","operands":"x0, x4"},{"wasm_offset":63,"address":288,"bytes":[225,3,9,170],"mnemonic":"mov","operands":"x1, x9"},{"wasm_offset":63,"address":292,"bytes":[96,0,63,214],"mnemonic":"blr","operands":"x3"},{"wasm_offset":63,"address":296,"bytes":[137,131,64,248],"mnemonic":"ldur","operands":"x9, [x28, #8]"},{"wasm_offset":null,"address":300,"bytes":[156,67,0,145],"mnemonic":"add","operands":"x28, x28, #0x10"},{"wasm_offset":null,"address":304,"bytes":[159,3,0,145],"mnemonic":"mov","operands":"sp, x28"},{"wasm_offset":null,"address":308,"bytes":[252,7,65,248],"mnemonic":"ldr","operands":"x28, [sp], #0x10"},{"wasm_offset":null,"address":312,"bytes":[253,123,193,168],"mnemonic":"ldp","operands":"x29, x30, [sp], #0x10"},{"wasm_offset":null,"address":316,"bytes":[192,3,95,214],"mnemonic":"ret","operands":""},{"wasm_offset":63,"address":320,"bytes":[31,193,0,0],"mnemonic":".byte","operands":"0x1f, 0xc1, 0x00, 0x00"},{"wasm_offset":63,"address":324,"bytes":[31,193,0,0],"mnemonic":".byte","operands":"0x1f, 0xc1, 0x00, 0x00"},{"wasm_offset":63,"address":328,"bytes":[31,193,0,0],"mnemonic":".byte","operands":"0x1f, 0xc1, 0x00, 0x00"}]}]};
+    </script>
+    <script>
+      /* global window, document */
+
+/*** State *********************************************************************/
+
+class State {
+  constructor(wat, clif, asm) {
+    this.wat = wat;
+    this.clif = clif;
+    this.asm = asm;
+  }
+}
+
+const state = (window.STATE = new State(window.WAT, window.CLIF, window.ASM));
+
+/*** Hues for Offsets **********************************************************/
+
+const hues = [
+  80, 160, 240, 320, 40, 120, 200, 280, 20, 100, 180, 260, 340, 60, 140, 220,
+  300,
+];
+
+const nextHue = (function () {
+  let i = 0;
+  return () => {
+    return hues[++i % hues.length];
+  };
+})();
+
+// NB: don't just assign hues based on something simple like `hues[offset %
+// hues.length]` since that can suffer from bias due to certain alignments
+// happening more or less frequently.
+const offsetToHue = new Map();
+
+// Get the hue for the given offset, or assign it a new one if it doesn't have
+// one already.
+const hueForOffset = offset => {
+  if (offsetToHue.has(offset)) {
+    return offsetToHue.get(offset);
+  } else {
+    let hue = nextHue();
+    offsetToHue.set(offset, hue);
+    return hue;
+  }
+};
+
+// Get the hue for the given offset, only if the offset has already been
+// assigned a hue.
+const existingHueForOffset = offset => {
+  return offsetToHue.get(offset);
+};
+
+// Get WAT chunk elements by Wasm offset.
+const watByOffset = new Map();
+
+// Get asm instruction elements by Wasm offset.
+const asmByOffset = new Map();
+
+// Get clif instruction elements by Wasm offset.
+const clifByOffset = new Map();
+
+// Get all (WAT chunk or asm instruction) elements by offset.
+const anyByOffset = new Map();
+
+const addWatElem = (offset, elem) => {
+  if (!watByOffset.has(offset)) {
+    watByOffset.set(offset, []);
+  }
+  watByOffset.get(offset).push(elem);
+
+  if (!anyByOffset.has(offset)) {
+    anyByOffset.set(offset, []);
+  }
+  anyByOffset.get(offset).push(elem);
+};
+
+const addAsmElem = (offset, elem) => {
+  if (!asmByOffset.has(offset)) {
+    asmByOffset.set(offset, []);
+  }
+  asmByOffset.get(offset).push(elem);
+
+  if (!anyByOffset.has(offset)) {
+    anyByOffset.set(offset, []);
+  }
+  anyByOffset.get(offset).push(elem);
+};
+
+const addClifElem = (offset, elem) => {
+  if (!clifByOffset.has(offset)) {
+    clifByOffset.set(offset, []);
+  }
+  clifByOffset.get(offset).push(elem);
+
+  if (!anyByOffset.has(offset)) {
+    anyByOffset.set(offset, []);
+  }
+  anyByOffset.get(offset).push(elem);
+};
+
+/*** Event Handlers ************************************************************/
+
+const watElem = document.getElementById("wat");
+watElem.addEventListener(
+  "click",
+  event => {
+    if (event.target.dataset.wasmOffset == null) {
+      return;
+    }
+
+    const offset = parseInt(event.target.dataset.wasmOffset);
+    if (!asmByOffset.get(offset)) {
+      return;
+    }
+
+    const firstClifElem = clifByOffset.get(offset)[0];
+    firstClifElem.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+      inline: "nearest",
+    });
+    const firstAsmElem = asmByOffset.get(offset)[0];
+    firstAsmElem.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+      inline: "nearest",
+    });
+  },
+  { passive: true },
+);
+
+const asmElem = document.getElementById("asm");
+asmElem.addEventListener(
+  "click",
+  event => {
+    if (event.target.dataset.wasmOffset == null) {
+      return;
+    }
+
+    const offset = parseInt(event.target.dataset.wasmOffset);
+    if (!watByOffset.get(offset)) {
+      return;
+    }
+
+    const firstWatElem = watByOffset.get(offset)[0];
+    firstWatElem.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+      inline: "nearest",
+    });
+    const firstClifElem = clifByOffset.get(offset)[0];
+    firstClifElem.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+      inline: "nearest",
+    });
+  },
+  { passive: true },
+);
+const clifElem = document.getElementById("clif");
+if (clifElem) {
+  clifElem.addEventListener(
+    "click",
+    event => {
+      if (event.target.dataset.wasmOffset == null) {
+        return;
+      }
+
+      const offset = parseInt(event.target.dataset.wasmOffset);
+      if (!watByOffset.get(offset)) {
+        return;
+      }
+
+      const firstWatElem = watByOffset.get(offset)[0];
+      firstWatElem.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+        inline: "nearest",
+      });
+      const firstAsmElem = asmByOffset.get(offset)[0];
+      firstAsmElem.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+        inline: "nearest",
+      });
+    },
+    { passive: true },
+  );
+}
+
+const onMouseEnter = event => {
+  if (event.target.dataset.wasmOffset == null) {
+    return;
+  }
+
+  const offset = parseInt(event.target.dataset.wasmOffset);
+  const hue = hueForOffset(offset);
+  for (const elem of anyByOffset.get(offset)) {
+    elem.style.backgroundColor = `hsl(${hue} 75% 80%)`;
+  }
+};
+
+const onMouseLeave = event => {
+  if (event.target.dataset.wasmOffset == null) {
+    return;
+  }
+
+  const offset = parseInt(event.target.dataset.wasmOffset);
+  const hue = hueForOffset(offset);
+  for (const elem of anyByOffset.get(offset)) {
+    elem.style.backgroundColor = `hsl(${hue} 50% 95%)`;
+  }
+};
+
+/*** Rendering *****************************************************************/
+
+const repeat = (s, n) => {
+  return s.repeat(n >= 0 ? n : 0);
+};
+
+const renderAddress = addr => {
+  let hex = addr.toString(16);
+  return repeat("0", 8 - hex.length) + hex;
+};
+
+const renderBytes = bytes => {
+  let s = "";
+  for (let i = 0; i < bytes.length; i++) {
+    if (i != 0) {
+      s += " ";
+    }
+    const hexByte = bytes[i].toString(16);
+    s += hexByte.length == 2 ? hexByte : "0" + hexByte;
+  }
+  return s + repeat(" ", 30 - s.length);
+};
+
+const renderInst = (mnemonic, operands) => {
+  if (operands.length == 0) {
+    return mnemonic;
+  } else {
+    return mnemonic + " " + operands;
+  }
+};
+
+// Render the CLIF.
+
+if (clifElem) {
+  for (const func of state.clif.functions) {
+    const funcElem = document.createElement("div");
+
+    const funcHeader = document.createElement("h3");
+    let func_name =
+      func.name === null ? `function[${func.func_index}]` : func.name;
+    let demangled_name =
+      func.demangled_name !== null ? func.demangled_name : func_name;
+    funcHeader.textContent = `Intermediate Representation of function <${demangled_name}>:`;
+    funcHeader.title = `Function ${func.func_index}: ${func_name}`;
+    funcElem.appendChild(funcHeader);
+
+    const bodyElem = document.createElement("pre");
+    for (const inst of func.instructions) {
+      const instElem = document.createElement("span");
+      instElem.textContent = `${inst.clif}\n`;
+      if (inst.wasm_offset != null) {
+        instElem.setAttribute("data-wasm-offset", inst.wasm_offset);
+        const hue = hueForOffset(inst.wasm_offset);
+        instElem.style.backgroundColor = `hsl(${hue} 50% 90%)`;
+        instElem.addEventListener("mouseenter", onMouseEnter);
+        instElem.addEventListener("mouseleave", onMouseLeave);
+        addClifElem(inst.wasm_offset, instElem);
+      }
+      bodyElem.appendChild(instElem);
+    }
+    funcElem.appendChild(bodyElem);
+
+    clifElem.appendChild(funcElem);
+  }
+}
+
+// Render the ASM.
+
+for (const func of state.asm.functions) {
+  const funcElem = document.createElement("div");
+
+  const funcHeader = document.createElement("h3");
+  let func_name =
+    func.name === null ? `function[${func.func_index}]` : func.name;
+  let demangled_name =
+    func.demangled_name !== null ? func.demangled_name : func_name;
+  funcHeader.textContent = `Disassembly of function <${demangled_name}>:`;
+  funcHeader.title = `Function ${func.func_index}: ${func_name}`;
+  funcElem.appendChild(funcHeader);
+
+  const bodyElem = document.createElement("pre");
+  for (const inst of func.instructions) {
+    const instElem = document.createElement("span");
+    instElem.textContent = `${renderAddress(inst.address)}    ${renderBytes(inst.bytes)}    ${renderInst(inst.mnemonic, inst.operands)}\n`;
+    if (inst.wasm_offset != null) {
+      instElem.setAttribute("data-wasm-offset", inst.wasm_offset);
+      const hue = hueForOffset(inst.wasm_offset);
+      instElem.style.backgroundColor = `hsl(${hue} 50% 90%)`;
+      instElem.addEventListener("mouseenter", onMouseEnter);
+      instElem.addEventListener("mouseleave", onMouseLeave);
+      addAsmElem(inst.wasm_offset, instElem);
+    }
+    bodyElem.appendChild(instElem);
+  }
+  funcElem.appendChild(bodyElem);
+
+  asmElem.appendChild(funcElem);
+}
+
+// Render the WAT.
+
+for (const chunk of state.wat.chunks) {
+  const chunkElem = document.createElement("span");
+  if (chunk.wasm_offset != null) {
+    chunkElem.dataset.wasmOffset = chunk.wasm_offset;
+    const hue = existingHueForOffset(chunk.wasm_offset);
+    if (hue) {
+      chunkElem.style.backgroundColor = `hsl(${hue} 50% 95%)`;
+      chunkElem.addEventListener("mouseenter", onMouseEnter);
+      chunkElem.addEventListener("mouseleave", onMouseLeave);
+      addWatElem(chunk.wasm_offset, chunkElem);
+    }
+  }
+  chunkElem.textContent = chunk.wat;
+  watElem.appendChild(chunkElem);
+}
+
+    </script>
+  </body>
+</html>
+        
