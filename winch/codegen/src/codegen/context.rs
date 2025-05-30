@@ -9,8 +9,8 @@ use crate::{
     frame::Frame,
     isa::reg::RegClass,
     masm::{
-        ExtractLaneKind, MacroAssembler, MemMoveDirection, OperandSize, RegImm, ReplaceLaneKind,
-        SPOffset, ShiftKind, StackSlot,
+        ExtractLaneKind, Imm, MacroAssembler, MemMoveDirection, OperandSize, RegImm,
+        ReplaceLaneKind, SPOffset, ShiftKind, StackSlot,
     },
     reg::{Reg, WritableReg, writable},
     regalloc::RegAlloc,
@@ -222,6 +222,15 @@ impl<'a> CodeGenContext<'a, Emission> {
         self.regalloc.free(reg);
     }
 
+    /// Calls [`Self::free_reg`] if the underlying value contains
+    /// a register.
+    pub fn maybe_free_reg(&mut self, maybe_reg: RegImm) {
+        match maybe_reg {
+            RegImm::Reg(r) => self.regalloc.free(r),
+            _ => {}
+        }
+    }
+
     /// Loads the stack top value into the next available register, if
     /// it isn't already one; spilling if there are no registers
     /// available.  Optionally the caller may specify a specific
@@ -304,6 +313,7 @@ impl<'a> CodeGenContext<'a, Emission> {
     }
 
     /// Move a stack value to the given register.
+    // TODO: We're clobbering dst, shoould be writable
     pub fn move_val_to_reg<M: MacroAssembler>(
         &self,
         src: &Val,
@@ -312,12 +322,12 @@ impl<'a> CodeGenContext<'a, Emission> {
     ) -> Result<()> {
         let size: OperandSize = src.ty().try_into()?;
         match src {
-            Val::Reg(tr) => masm.mov(writable!(dst), RegImm::reg(tr.reg), size),
-            Val::I32(imm) => masm.mov(writable!(dst), RegImm::i32(*imm), size),
-            Val::I64(imm) => masm.mov(writable!(dst), RegImm::i64(*imm), size),
-            Val::F32(imm) => masm.mov(writable!(dst), RegImm::f32(imm.bits()), size),
-            Val::F64(imm) => masm.mov(writable!(dst), RegImm::f64(imm.bits()), size),
-            Val::V128(imm) => masm.mov(writable!(dst), RegImm::v128(*imm), size),
+            Val::Reg(tr) => masm.mov(writable!(dst), tr.reg, size),
+            Val::I32(imm) => masm.load_constant(writable!(dst), Imm::i32(*imm), size),
+            Val::I64(imm) => masm.load_constant(writable!(dst), Imm::i64(*imm), size),
+            Val::F32(imm) => masm.load_constant(writable!(dst), Imm::f32(imm.bits()), size),
+            Val::F64(imm) => masm.load_constant(writable!(dst), Imm::f64(imm.bits()), size),
+            Val::V128(imm) => masm.load_constant(writable!(dst), Imm::v128(*imm), size),
             Val::Local(local) => {
                 let slot = self.frame.get_wasm_local(local.index);
                 let addr = masm.local_address(&slot)?;
@@ -489,6 +499,13 @@ impl<'a> CodeGenContext<'a, Emission> {
         } else {
             None
         }
+    }
+
+    /// Pops the [`Value`] at stack top.
+    ///
+    /// Panics if there are no values left in the stack.
+    pub fn pop_value(&mut self) -> Val {
+        self.stack.pop().expect("expected value at stack top")
     }
 
     /// Prepares arguments for emitting a convert operation.

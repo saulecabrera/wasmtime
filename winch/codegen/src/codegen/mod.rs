@@ -6,6 +6,7 @@ use crate::{
         Extend, Imm, IntCmpKind, LaneSelector, LoadKind, MacroAssembler, OperandSize, RegImm,
         RmwOp, SPOffset, ShiftKind, StoreKind, TrapCode, UNTRUSTED_FLAGS, Zero,
     },
+    operands::Operands,
     stack::TypedReg,
 };
 use anyhow::{Result, anyhow, bail, ensure};
@@ -91,10 +92,11 @@ pub(crate) enum AtomicWaitKind {
 }
 
 /// The code generation abstraction.
-pub(crate) struct CodeGen<'a, 'translation: 'a, 'data: 'translation, M, P>
+pub(crate) struct CodeGen<'a, 'translation: 'a, 'data: 'translation, M, P, O>
 where
     M: MacroAssembler,
     P: CodeGenPhase,
+    O: Operands,
 {
     /// The ABI-specific representation of the function signature, excluding results.
     pub sig: ABISig,
@@ -107,6 +109,9 @@ where
 
     /// The MacroAssembler.
     pub masm: &'a mut M,
+
+    /// Operand handler.
+    pub operands: O,
 
     /// Stack frames for control flow.
     // NB The 64 is set arbitrarily, we can adjust it as
@@ -124,9 +129,10 @@ where
     phase: PhantomData<P>,
 }
 
-impl<'a, 'translation, 'data, M> CodeGen<'a, 'translation, 'data, M, Prologue>
+impl<'a, 'translation, 'data, M, O> CodeGen<'a, 'translation, 'data, M, Prologue, O>
 where
     M: MacroAssembler,
+    O: Operands,
 {
     pub fn new(
         tunables: &'a Tunables,
@@ -134,11 +140,13 @@ where
         context: CodeGenContext<'a, Prologue>,
         env: FuncEnv<'a, 'translation, 'data, M::Ptr>,
         sig: ABISig,
-    ) -> CodeGen<'a, 'translation, 'data, M, Prologue> {
+        operands: O,
+    ) -> CodeGen<'a, 'translation, 'data, M, Prologue, O> {
         Self {
             sig,
             context,
             masm,
+            operands,
             env,
             tunables,
             source_location: Default::default(),
@@ -150,7 +158,7 @@ where
     }
 
     /// Code generation prologue.
-    pub fn emit_prologue(mut self) -> Result<CodeGen<'a, 'translation, 'data, M, Emission>> {
+    pub fn emit_prologue(mut self) -> Result<CodeGen<'a, 'translation, 'data, M, Emission, O>> {
         let vmctx = self
             .sig
             .params()
@@ -200,6 +208,7 @@ where
             sig: self.sig,
             context: self.context.for_emission(),
             masm: self.masm,
+            operands: self.operands,
             env: self.env,
             tunables: self.tunables,
             source_location: self.source_location,
@@ -240,9 +249,10 @@ where
     }
 }
 
-impl<'a, 'translation, 'data, M> CodeGen<'a, 'translation, 'data, M, Emission>
+impl<'a, 'translation, 'data, M, O> CodeGen<'a, 'translation, 'data, M, Emission, O>
 where
     M: MacroAssembler,
+    O: Operands,
 {
     /// Emit the function body to machine code.
     pub fn emit(
@@ -403,8 +413,8 @@ where
             fn visit(&self, op: &Operator) -> bool;
         }
 
-        impl<'a, 'translation, 'data, M: MacroAssembler> VisitorHooks
-            for CodeGen<'a, 'translation, 'data, M, Emission>
+        impl<'a, 'translation, 'data, M: MacroAssembler, O: Operands> VisitorHooks
+            for CodeGen<'a, 'translation, 'data, M, Emission, O>
         {
             fn visit(&self, op: &Operator) -> bool {
                 self.context.reachable || visit_op_when_unreachable(op)

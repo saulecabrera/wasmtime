@@ -1428,8 +1428,10 @@ pub(crate) trait MacroAssembler {
     /// Pop a value from the machine stack into the given register.
     fn pop(&mut self, dst: WritableReg, size: OperandSize) -> Result<()>;
 
+    /// Load a constant into a register.
+    fn load_constant(&mut self, dst: WritableReg, src: Imm, size: OperandSize) -> Result<()>;
     /// Perform a move.
-    fn mov(&mut self, dst: WritableReg, src: RegImm, size: OperandSize) -> Result<()>;
+    fn mov(&mut self, dst: WritableReg, src: Reg, size: OperandSize) -> Result<()>;
 
     /// Perform a conditional move.
     fn cmov(&mut self, dst: WritableReg, src: Reg, cc: IntCmpKind, size: OperandSize)

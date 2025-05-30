@@ -16,6 +16,7 @@ use cranelift_codegen::settings::{self, Flags};
 use cranelift_codegen::{Final, MachBufferFinalized, isa::aarch64::settings as aarch64_settings};
 use cranelift_codegen::{MachTextSectionBuilder, TextSectionBuilder};
 use masm::MacroAssembler as Aarch64Masm;
+use operands::Aarch64Operands;
 use target_lexicon::Triple;
 use wasmparser::{FuncValidator, FunctionBody, ValidatorResources};
 use wasmtime_cranelift::CompiledFunction;
@@ -25,6 +26,7 @@ mod abi;
 mod address;
 mod asm;
 mod masm;
+mod operands;
 mod regs;
 
 /// Create an ISA from the given triple.
@@ -123,7 +125,14 @@ impl TargetIsa for Aarch64 {
         );
         let regalloc = RegAlloc::from(gpr, fpr);
         let codegen_context = CodeGenContext::new(regalloc, stack, frame, &vmoffsets);
-        let codegen = CodeGen::new(tunables, &mut masm, codegen_context, env, abi_sig);
+        let codegen = CodeGen::new(
+            tunables,
+            &mut masm,
+            codegen_context,
+            env,
+            abi_sig,
+            Aarch64Operands,
+        );
 
         let mut body_codegen = codegen.emit_prologue()?;
         body_codegen.emit(body, validator)?;

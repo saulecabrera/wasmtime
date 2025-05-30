@@ -6,7 +6,7 @@ use crate::{
     abi::{scratch, vmctx},
     codegen::{CodeGenContext, Emission},
     isa::reg::{Reg, writable},
-    masm::{IntCmpKind, MacroAssembler, OperandSize, RegImm, TrapCode},
+    masm::{IntCmpKind, MacroAssembler, OperandSize, RegImm, TrapCode, Imm},
     stack::TypedReg,
 };
 use anyhow::Result;
@@ -94,7 +94,7 @@ where
     let dst = context.any_gpr(masm)?;
     match heap.memory.static_heap_size() {
         // Constant size, no need to perform a load.
-        Some(size) => masm.mov(writable!(dst), RegImm::i64(size.signed()), ptr_size)?,
+        Some(size) => masm.load_constant(writable!(dst), Imm::i64(size.signed()), ptr_size)?,
 
         None => {
             let scratch = scratch!(M);
@@ -178,7 +178,7 @@ where
         // Conditionally assign 0 to the register holding the base address if
         // the comparison kind is met.
         let tmp = context.any_gpr(masm)?;
-        masm.mov(writable!(tmp), RegImm::i64(0), ptr_size)?;
+        masm.load_constant(writable!(tmp), Imm::i64(0), ptr_size)?;
         let cmp_kind = emit_check_condition(masm, bounds, index)?;
         masm.cmov(writable!(addr), tmp, cmp_kind, ptr_size)?;
         context.free_reg(tmp);

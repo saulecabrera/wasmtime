@@ -16,6 +16,7 @@ use anyhow::Result;
 use cranelift_codegen::settings::{self, Flags};
 use cranelift_codegen::{Final, MachBufferFinalized, isa::x64::settings as x64_settings};
 use cranelift_codegen::{MachTextSectionBuilder, TextSectionBuilder};
+use operands::X64Operands;
 use target_lexicon::Triple;
 use wasmparser::{FuncValidator, FunctionBody, ValidatorResources};
 use wasmtime_cranelift::CompiledFunction;
@@ -27,6 +28,7 @@ mod abi;
 mod address;
 mod asm;
 mod masm;
+mod operands;
 // Not all the fpr and gpr constructors are used at the moment;
 // in that sense, this directive is a temporary measure to avoid
 // dead code warnings.
@@ -134,7 +136,14 @@ impl TargetIsa for X64 {
 
         let regalloc = RegAlloc::from(gpr, fpr);
         let codegen_context = CodeGenContext::new(regalloc, stack, frame, &vmoffsets);
-        let codegen = CodeGen::new(tunables, &mut masm, codegen_context, env, abi_sig);
+        let codegen = CodeGen::new(
+            tunables,
+            &mut masm,
+            codegen_context,
+            env,
+            abi_sig,
+            X64Operands,
+        );
 
         let mut body_codegen = codegen.emit_prologue()?;
 

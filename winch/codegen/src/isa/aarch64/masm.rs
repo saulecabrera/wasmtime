@@ -425,32 +425,27 @@ impl Masm for MacroAssembler {
         Ok(self.asm.finalize(base))
     }
 
-    fn mov(&mut self, dst: WritableReg, src: RegImm, size: OperandSize) -> Result<()> {
-        match (src, dst) {
-            (RegImm::Imm(v), rd) => {
-                let imm = match v {
-                    I::I32(v) => v as u64,
-                    I::I64(v) => v,
-                    I::F32(v) => v as u64,
-                    I::F64(v) => v,
-                    I::V128(_) => bail!(CodeGenError::unsupported_imm()),
-                };
+    fn load_constant(&mut self, dst: WritableReg, src: I, _: OperandSize) -> Result<()> {
+        let imm = match src {
+            I::I32(v) => v as u64,
+            I::I64(v) => v,
+            I::F32(v) => v as u64,
+            I::F64(v) => v,
+            I::V128(_) => bail!(CodeGenError::unsupported_imm()),
+        };
 
-                let scratch = regs::scratch();
-                self.asm.load_constant(imm, writable!(scratch));
-                match rd.to_reg().class() {
-                    RegClass::Int => Ok(self.asm.mov_rr(scratch, rd, size)),
-                    RegClass::Float => Ok(self.asm.mov_to_fpu(scratch, rd, size)),
-                    _ => bail!(CodeGenError::invalid_operand_combination()),
-                }
-            }
-            (RegImm::Reg(rs), rd) => match (rs.class(), rd.to_reg().class()) {
-                (RegClass::Int, RegClass::Int) => Ok(self.asm.mov_rr(rs, rd, size)),
-                (RegClass::Float, RegClass::Float) => Ok(self.asm.fmov_rr(rs, rd, size)),
-                (RegClass::Int, RegClass::Float) => Ok(self.asm.mov_to_fpu(rs, rd, size)),
-                _ => bail!(CodeGenError::invalid_operand_combination()),
-            },
-        }
+        self.asm.load_constant(imm, dst);
+        Ok(())
+    }
+
+    fn mov(&mut self, dst: WritableReg, rs: Reg, size: OperandSize) -> Result<()> {
+	let rd = dst.to_reg();
+	match (rs.class(), rd.class()) {
+	    (RegClass::Int, RegClass::Int) => Ok(self.asm.mov_rr(rs, dst, size)),
+	    (RegClass::Float, RegClass::Float) => Ok(self.asm.fmov_rr(rs, dst, size)),
+	    (RegClass::Int, RegClass::Float) => Ok(self.asm.mov_to_fpu(rs, dst, size)),
+	    _ => bail!(CodeGenError::invalid_operand_combination()),
+	}
     }
 
     fn cmov(

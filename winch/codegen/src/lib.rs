@@ -17,6 +17,7 @@ mod frame;
 pub mod isa;
 pub use isa::*;
 mod masm;
+pub mod operands;
 mod regalloc;
 mod regset;
 mod stack;

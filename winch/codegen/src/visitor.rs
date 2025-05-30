@@ -18,13 +18,14 @@ use crate::masm::{
     VectorCompareKind, VectorEqualityKind, Zero,
 };
 
+use crate::operands::{I32xI32, I64xI64, Operands, BinopType};
 use crate::reg::{Reg, writable};
 use crate::stack::{TypedReg, Val};
 use anyhow::{Result, anyhow, bail, ensure};
 use regalloc2::RegClass;
 use smallvec::{SmallVec, smallvec};
 use wasmparser::{
-    BlockType, BrTable, Ieee32, Ieee64, MemArg, V128, VisitOperator, VisitSimdOperator,
+    BlockType, BrTable, Ieee32, Ieee64, MemArg, Operator, V128, VisitOperator, VisitSimdOperator,
 };
 use wasmtime_cranelift::TRAP_INDIRECT_CALL_TO_NULL;
 use wasmtime_environ::{
@@ -562,9 +563,11 @@ macro_rules! def_unsupported {
     (emit $unsupported:tt $($rest:tt)*) => {$($rest)*};
 }
 
-impl<'a, 'translation, 'data, M> VisitOperator<'a> for CodeGen<'a, 'translation, 'data, M, Emission>
+impl<'a, 'translation, 'data, M, O> VisitOperator<'a>
+    for CodeGen<'a, 'translation, 'data, M, Emission, O>
 where
     M: MacroAssembler,
+    O: Operands,
 {
     type Output = Result<()>;
 
@@ -1084,14 +1087,14 @@ where
     fn visit_f32_reinterpret_i32(&mut self) -> Self::Output {
         self.context
             .convert_op(self.masm, WasmValType::F32, |masm, dst, src, size| {
-                masm.reinterpret_int_as_float(writable!(dst), src, size)
+                masm.reinterpret_int_as_float(writable!(dst), src.into(), size)
             })
     }
 
     fn visit_f64_reinterpret_i64(&mut self) -> Self::Output {
         self.context
             .convert_op(self.masm, WasmValType::F64, |masm, dst, src, size| {
-                masm.reinterpret_int_as_float(writable!(dst), src, size)
+                masm.reinterpret_int_as_float(writable!(dst), src.into(), size)
             })
     }
 
@@ -1124,10 +1127,13 @@ where
     }
 
     fn visit_i32_sub(&mut self) -> Self::Output {
-        self.context.i32_binop(self.masm, |masm, dst, src, size| {
-            masm.sub(writable!(dst), dst, src, size)?;
-            Ok(TypedReg::i32(dst))
-        })
+        let (v0, r1, size) =
+            self.operands
+                .binop::<I32xI32, M>(Operator::I32Sub, &mut self.context, self.masm)?;
+        self.masm.sub(writable!(r1), r1, v0, size)?;
+        self.context.stack.push(TypedReg::i32(r1).into());
+        self.context.maybe_free_reg(v0);
+        Ok(())
     }
 
     fn visit_i64_sub(&mut self) -> Self::Output {
@@ -1291,7 +1297,7 @@ where
         use OperandSize::*;
 
         self.context.unop(self.masm, |masm, reg| {
-            masm.cmp_with_set(writable!(reg), RegImm::i32(0), IntCmpKind::Eq, S32)?;
+            masm.cmp_with_set(writable!(reg.into()), RegImm::i32(0), IntCmpKind::Eq, S32)?;
             Ok(TypedReg::i32(reg))
         })
     }
@@ -1300,7 +1306,7 @@ where
         use OperandSize::*;
 
         self.context.unop(self.masm, |masm, reg| {
-            masm.cmp_with_set(writable!(reg), RegImm::i64(0), IntCmpKind::Eq, S64)?;
+            masm.cmp_with_set(writable!(reg.into()), RegImm::i64(0), IntCmpKind::Eq, S64)?;
             Ok(TypedReg::i32(reg)) // Return value for `i64.eqz` is an `i32`.
         })
     }
@@ -1585,14 +1591,14 @@ where
     fn visit_i32_reinterpret_f32(&mut self) -> Self::Output {
         self.context
             .convert_op(self.masm, WasmValType::I32, |masm, dst, src, size| {
-                masm.reinterpret_float_as_int(writable!(dst), src, size)
+                masm.reinterpret_float_as_int(writable!(dst), src.into(), size)
             })
     }
 
     fn visit_i64_reinterpret_f64(&mut self) -> Self::Output {
         self.context
             .convert_op(self.masm, WasmValType::I64, |masm, dst, src, size| {
-                masm.reinterpret_float_as_int(writable!(dst), src, size)
+                masm.reinterpret_float_as_int(writable!(dst), src.into(), size)
             })
     }
 
@@ -1891,7 +1897,7 @@ where
             // the result of the memory32_grow builtin.
             (WasmValType::I64, WasmValType::I32) => {
                 let top: Reg = self.context.pop_to_reg(self.masm, None)?.into();
-                self.masm.wrap(writable!(top), top)?;
+                self.masm.wrap(writable!(top.into()), top.into())?;
                 self.context.stack.push(TypedReg::i32(top).into());
                 Ok(())
             }
@@ -2018,7 +2024,7 @@ where
         };
 
         self.masm
-            .branch(cmp, top.reg, top.reg.into(), label, OperandSize::S32)?;
+            .branch(cmp, top.reg.into(), top.reg.into(), label, OperandSize::S32)?;
         self.context.free_reg(top);
 
         if unbalanced {
@@ -2102,6 +2108,7 @@ where
 
         for (t, l) in targets
             .targets()
+            .into_iter()
             .chain(std::iter::once(Ok(targets.default())))
             .zip(labels.iter())
         {
@@ -2193,7 +2200,7 @@ where
 
     fn visit_drop(&mut self) -> Self::Output {
         self.context.drop_last(1, |regalloc, val| match val {
-            Val::Reg(tr) => Ok(regalloc.free(tr.reg)),
+            Val::Reg(tr) => Ok(regalloc.free(tr.reg.into())),
             Val::Memory(m) => self.masm.free_stack(m.slot.size),
             _ => Ok(()),
         })
@@ -2203,7 +2210,8 @@ where
         let cond = self.context.pop_to_reg(self.masm, None)?;
         let val2 = self.context.pop_to_reg(self.masm, None)?;
         let val1 = self.context.pop_to_reg(self.masm, None)?;
-        self.masm.cmp(cond.reg, RegImm::i32(0), OperandSize::S32)?;
+        self.masm
+            .cmp(cond.reg.into(), RegImm::i32(0), OperandSize::S32)?;
         // Conditionally move val1 to val2 if the comparison is
         // not zero.
         self.masm.cmov(
@@ -2917,10 +2925,11 @@ where
     wasmparser::for_each_visit_operator!(def_unsupported);
 }
 
-impl<'a, 'translation, 'data, M> VisitSimdOperator<'a>
-    for CodeGen<'a, 'translation, 'data, M, Emission>
+impl<'a, 'translation, 'data, M, O> VisitSimdOperator<'a>
+    for CodeGen<'a, 'translation, 'data, M, Emission, O>
 where
     M: MacroAssembler,
+    O: Operands,
 {
     fn visit_v128_const(&mut self, val: V128) -> Self::Output {
         self.context.stack.push(Val::v128(val.i128()));
@@ -4608,9 +4617,10 @@ where
     wasmparser::for_each_visit_simd_operator!(def_unsupported);
 }
 
-impl<'a, 'translation, 'data, M> CodeGen<'a, 'translation, 'data, M, Emission>
+impl<'a, 'translation, 'data, M, O> CodeGen<'a, 'translation, 'data, M, Emission, O>
 where
     M: MacroAssembler,
+    O: Operands,
 {
     fn cmp_i32s(&mut self, kind: IntCmpKind) -> Result<()> {
         self.context.i32_binop(self.masm, |masm, dst, src, size| {
