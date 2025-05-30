@@ -427,23 +427,27 @@ impl Masm for MacroAssembler {
 
     fn mov(&mut self, dst: WritableReg, src: RegImm, size: OperandSize) -> Result<()> {
         match (src, dst) {
-            (RegImm::Imm(v), rd) => {
-                let imm = match v {
-                    I::I32(v) => v as u64,
-                    I::I64(v) => v,
-                    I::F32(v) => v as u64,
-                    I::F64(v) => v,
-                    I::V128(_) => bail!(CodeGenError::unsupported_imm()),
-                };
-
-                let scratch = regs::scratch();
-                self.asm.load_constant(imm, writable!(scratch));
-                match rd.to_reg().class() {
-                    RegClass::Int => Ok(self.asm.mov_rr(scratch, rd, size)),
-                    RegClass::Float => Ok(self.asm.mov_to_fpu(scratch, rd, size)),
-                    _ => bail!(CodeGenError::invalid_operand_combination()),
+            (RegImm::Imm(v), _) => match v {
+                I::I32(v) => {
+                    self.asm.load_constant(v as u64, dst);
+                    Ok(())
                 }
-            }
+                I::I64(v) => {
+                    self.asm.load_constant(v, dst);
+                    Ok(())
+                }
+                I::F32(v) => {
+                    let handle = self.asm.add_constant(v.to_le_bytes().as_slice());
+                    self.asm.uload(handle, dst, size, TRUSTED_FLAGS);
+                    Ok(())
+                }
+                I::F64(v) => {
+                    let handle = self.asm.add_constant(v.to_le_bytes().as_slice());
+                    self.asm.uload(handle, dst, size, TRUSTED_FLAGS);
+                    Ok(())
+                }
+                I::V128(_) => bail!(CodeGenError::unsupported_imm()),
+            },
             (RegImm::Reg(rs), rd) => match (rs.class(), rd.to_reg().class()) {
                 (RegClass::Int, RegClass::Int) => Ok(self.asm.mov_rr(rs, rd, size)),
                 (RegClass::Float, RegClass::Float) => Ok(self.asm.fmov_rr(rs, rd, size)),
