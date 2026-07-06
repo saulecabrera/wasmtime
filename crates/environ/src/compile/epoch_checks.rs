@@ -91,11 +91,16 @@ impl EpochCheckSection {
 
 /// Returns the offset at which to resume after the given epoch check.
 ///
-/// If there is no epoch check at that offset, return None.
+/// If there is no epoch check at that offset or the .wasmtime.epochchecks
+/// section is missing, return None.
 pub fn return_offset_for_epoch_check(
     section: &[u8],
     check: EpochCheckOffset,
 ) -> Option<EpochCheckOffset> {
+    if section.len() == 0 {
+        return None;
+    }
+
     let (num_checks, rest) = object::from_bytes::<u32>(section)
         .expect(".wasmtime.epochchecks section should be long enough to contain count");
     let (starts, ends) = object::slice_from_bytes::<u32>(rest, *num_checks as usize)

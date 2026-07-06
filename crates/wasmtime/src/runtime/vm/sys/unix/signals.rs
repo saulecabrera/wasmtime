@@ -386,8 +386,8 @@ unsafe extern "C" fn trap_handler(
                     return true;
                 }
             }
-            // Else it is an ordinary trap or the epochchecks section is somehow
-            // missing from the binary; continue on.
+            // Else it is an ordinary trap or the epochchecks section is missing
+            // from the binary; continue on.
         }
 
         // If we hit an exception while handling a previous trap, that's
