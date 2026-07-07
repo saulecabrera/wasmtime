@@ -86,8 +86,9 @@ fn epoch_check_offsets() {
 }
 
 /// Runs a wasm function with MMU-based epoch interruption enabled and the epoch
-/// ended. Make sure the function returns happily after the interruption.
+/// ended. Makes sure the function returns happily after the interruption.
 #[tokio::test]
+#[cfg(all(target_arch = "x86_64", target_os = "linux"))]
 async fn epoch_mmu_trap_via_signal_handler() {
     let config = config_with_mmu_epochs();
     let engine = Engine::new(&config).unwrap();
@@ -116,7 +117,7 @@ async fn epoch_mmu_trap_via_signal_handler() {
 /// future driving it. This exercises the cancellation path of
 /// `yield_current_fiber()`, which should unwind the stack cleanly.
 #[test]
-// TODO: run only on x86.
+#[cfg(all(target_arch = "x86_64", target_os = "linux"))]
 fn epoch_mmu_cancellation_during_yield() {
     // Returns a no-op waker that lets nothing re-poll our future after it
     // yields the first time. This keeps the fiber parked inside the yield until
