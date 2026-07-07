@@ -16,19 +16,6 @@ fn config_with_mmu_epochs() -> Config {
     config
 }
 
-/// Returns a new `Store` set up to trap at the first encountered epoch check.
-fn store_with_ended_epoch(engine: &Engine) -> Store<()> {
-    // Trap as soon as the first epoch check is encountered, in the function
-    // prologue. Recall that MMU-based epochs don't operate based on a numeric
-    // deadline but on an external entity protecting the memory page, typically
-    // on a timer.
-    let mut store = Store::new(&engine, ());
-    store.epoch_deadline_trap(); // Allegedly the default.
-    // Protect the memory page:
-    store.mmu_interrupter().unwrap().interrupt();
-    store
-}
-
 /// Asserts that each epoch-check offset encoded into the binary points to the
 /// byte after its corresponding dead load.
 #[test]
@@ -85,32 +72,64 @@ fn epoch_check_offsets() {
     );
 }
 
-/// Runs a wasm function with MMU-based epoch interruption enabled and the epoch
-/// ended. Makes sure the function returns happily after the interruption.
+/// Runs two Wasm functions, interleaved, with MMU-based epoch interruption
+/// enabled and the epochs ended. Shows that the functions return happily after
+/// interruption. Loops several times to test multiple interrupts switching
+/// between Wasm modules in a single `Store`.
 #[tokio::test]
 #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
-async fn epoch_mmu_trap_via_signal_handler() {
+async fn epoch_mmu_signal_handler_trapping_and_switching() {
     let config = config_with_mmu_epochs();
     let engine = Engine::new(&config).unwrap();
-    let module = Module::new(
+
+    let module_one = Module::new(
         &engine,
         r#"(module
              (memory 0)
-             (func (export "answer") (result i32)
-                i32.const 42
+             (func (export "one") (result i32)
+                i32.const 1
+             )
+           )"#,
+    )
+    .unwrap();
+    let module_two = Module::new(
+        &engine,
+        r#"(module
+             (memory 0)
+             (func (export "two") (result i32)
+                i32.const 2
              )
            )"#,
     )
     .unwrap();
 
-    let mut store = store_with_ended_epoch(&engine);
-    let instance = Instance::new_async(&mut store, &module, &[]).await.unwrap();
-    let func = instance
-        .get_typed_func::<(), i32>(&mut store, "answer")
+    let mut store = Store::new(&engine, ());
+    store.epoch_deadline_trap();
+    let interrupter = store.mmu_interrupter().unwrap();
+
+    let instance_one = Instance::new_async(&mut store, &module_one, &[])
+        .await
+        .unwrap();
+    let instance_two = Instance::new_async(&mut store, &module_two, &[])
+        .await
+        .unwrap();
+    let func_one = instance_one
+        .get_typed_func::<(), i32>(&mut store, "one")
+        .unwrap();
+    let func_two = instance_two
+        .get_typed_func::<(), i32>(&mut store, "two")
         .unwrap();
 
-    let result = func.call_async(&mut store, ()).await.unwrap();
-    assert_eq!(result, 42);
+    for _ in 0..5 {
+        // Trap as soon as the first epoch check is encountered, in the function
+        // prologue. Recall that MMU-based epochs don't operate based on a numeric
+        // deadline but on an external entity protecting the memory page, typically
+        // on a timer.
+        interrupter.interrupt();
+        assert_eq!(func_one.call_async(&mut store, ()).await.unwrap(), 1);
+        interrupter.interrupt();
+        assert_eq!(func_two.call_async(&mut store, ()).await.unwrap(), 2);
+    }
 }
 
 /// Runs a Wasm function to an epoch check point, lets it yield, then drops the
@@ -152,7 +171,10 @@ fn epoch_mmu_cancellation_during_yield() {
     )
     .unwrap();
 
-    let mut store = store_with_ended_epoch(&engine);
+    let mut store = Store::new(&engine, ());
+    store.epoch_deadline_trap();
+    store.mmu_interrupter().unwrap().interrupt();
+
     let instance = busy_poll_until_complete(Instance::new_async(&mut store, &module, &[])).unwrap();
     let func = instance
         .get_typed_func::<(), ()>(&mut store, "loop")
