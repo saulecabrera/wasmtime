@@ -111,6 +111,18 @@ impl CompilerBuilder for Builder {
     }
 
     fn set_tunables(&mut self, tunables: Tunables) -> Result<()> {
+        if tunables.epoch_interruption_via_mmu
+            && !matches!(
+                self.inner.triple().architecture,
+                target_lexicon::Architecture::X86_64 | target_lexicon::Architecture::X86_64h
+            )
+        {
+            anyhow::bail!(
+                "epoch interruption via mmu is only supported on x86_64, not for: `{}`",
+                self.inner.triple()
+            );
+        }
+
         self.tunables = Some(tunables);
         Ok(())
     }

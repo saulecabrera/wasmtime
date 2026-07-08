@@ -356,6 +356,32 @@ impl Engine {
         if !cfg!(has_native_signals) && self.tunables().signals_based_traps {
             return Err("signals-based-traps disabled at compile time -- cannot be enabled".into());
         }
+
+        // Epoch interruption via mmu requires:
+        // - Native signals
+        // - x86_64+Linux host
+        // - Signals based traps
+        // - Async support
+        if self.tunables().epoch_interruption_via_mmu {
+            use target_lexicon::{Architecture, OperatingSystem};
+
+            if !matches!(
+                host.architecture,
+                Architecture::X86_64 | Architecture::X86_64h
+            ) || host.operating_system != OperatingSystem::Linux
+            {
+                return Err("epoch interruption via mmu is only supported on x86_64 linux".into());
+            }
+
+            if !cfg!(has_native_signals) {
+                return Err("epoch interruption via mmu requires native signals".into());
+            }
+
+            if !self.config().async_support {
+                return Err("epoch interruption via mmu requires async support".into());
+            }
+        }
+
         if !cfg!(has_virtual_memory) && self.tunables().memory_init_cow {
             return Err("virtual memory disabled at compile time -- cannot enable CoW".into());
         }

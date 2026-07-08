@@ -5,24 +5,25 @@ use std::future::Future;
 use std::pin::Pin;
 use std::ptr::null;
 use std::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
-use wasmtime::{Config, Engine, Instance, Module, Store};
+use wasmtime::{Config, Engine, Module, Result};
+#[cfg(all(target_arch = "x86_64", target_os = "linux"))]
+use wasmtime::{Instance, Store};
 use wasmtime_environ::obj::ELF_WASMTIME_EPOCH_CHECKS;
+use wasmtime_test_macros::wasmtime_test;
 
-/// Returns an `Engine` with MMU-based epochs enabled.
-fn config_with_mmu_epochs() -> Config {
-    let mut config = Config::new();
+/// Enables MMU-based epochs on `config`.
+fn config_for_mmu_epochs(config: &mut Config) {
     config.epoch_interruption_via_mmu(true);
     config.async_support(true);
-    config
 }
 
 /// Asserts that each epoch-check offset encoded into the binary points to the
 /// byte after its corresponding dead load.
-#[test]
-fn epoch_check_offsets() {
-    let mut config = config_with_mmu_epochs();
+#[wasmtime_test(strategies(only(CraneliftNative)))]
+fn epoch_check_offsets(config: &mut Config) -> Result<()> {
+    config_for_mmu_epochs(config);
     config.target("x86_64").unwrap();
-    let engine = Engine::new(&config).unwrap();
+    let engine = Engine::new(config).unwrap();
 
     // A function with an infinite loop contains two epoch checks: one in the
     // function prologue and another at the loop backedge.
@@ -70,17 +71,18 @@ fn epoch_check_offsets() {
         vec![0],
         "Neither check's load instruction uses R12 of RSP as its source, so all length bits should be 0."
     );
+    Ok(())
 }
 
 /// Runs two Wasm functions, interleaved, with MMU-based epoch interruption
 /// enabled and the epochs ended. Shows that the functions return happily after
 /// interruption. Loops several times to test multiple interrupts switching
 /// between Wasm modules in a single `Store`.
-#[tokio::test]
 #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
-async fn epoch_mmu_signal_handler_trapping_and_switching() {
-    let config = config_with_mmu_epochs();
-    let engine = Engine::new(&config).unwrap();
+#[wasmtime_test(strategies(only(CraneliftNative)), with = "#[tokio::test]")]
+async fn epoch_mmu_signal_handler_trapping_and_switching(config: &mut Config) -> Result<()> {
+    config_for_mmu_epochs(config);
+    let engine = Engine::new(config).unwrap();
 
     let module_one = Module::new(
         &engine,
@@ -130,14 +132,15 @@ async fn epoch_mmu_signal_handler_trapping_and_switching() {
         interrupter.interrupt();
         assert_eq!(func_two.call_async(&mut store, ()).await.unwrap(), 2);
     }
+    Ok(())
 }
 
 /// Runs a Wasm function to an epoch check point, lets it yield, then drops the
 /// future driving it. This exercises the cancellation path of
 /// `yield_current_fiber()`, which should unwind the stack cleanly.
-#[test]
 #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
-fn epoch_mmu_cancellation_during_yield() {
+#[wasmtime_test(strategies(only(CraneliftNative)))]
+fn epoch_mmu_cancellation_during_yield(config: &mut Config) -> Result<()> {
     // Returns a no-op waker that lets nothing re-poll our future after it
     // yields the first time. This keeps the fiber parked inside the yield until
     // we explicitly drop its future.
@@ -160,8 +163,8 @@ fn epoch_mmu_cancellation_during_yield() {
         }
     }
 
-    let config = config_with_mmu_epochs();
-    let engine = Engine::new(&config).unwrap();
+    config_for_mmu_epochs(config);
+    let engine = Engine::new(config).unwrap();
     let module = Module::new(
         &engine,
         r#"(module
@@ -205,4 +208,103 @@ fn epoch_mmu_cancellation_during_yield() {
     // If the unwinding went wrong, the above drop would have spun forever (in a
     // release build) or hit the `debug_assert!(result.is_ok())` (in debug) in
     // `StoreFiber::dispose()`. Thus, getting here means success.
+    Ok(())
+}
+
+// For aot compilation, signals based traps are required.
+#[wasmtime_test(strategies(only(CraneliftNative)))]
+fn requires_signals_based_traps(config: &mut Config) -> Result<()> {
+    config_for_mmu_epochs(config);
+    config.signals_based_traps(false);
+    let err = Engine::new(config).expect_err("engine creation should fail");
+    assert_eq!(
+        err.to_string(),
+        "epoch interruption via mmu requires signals based traps",
+    );
+    Ok(())
+}
+
+// An engine with async support is required.
+#[cfg(all(target_arch = "x86_64", target_os = "linux"))]
+#[wasmtime_test(strategies(only(CraneliftNative)))]
+fn requires_async_support(config: &mut Config) -> Result<()> {
+    config.epoch_interruption_via_mmu(true);
+    config.signals_based_traps(true);
+    let engine = Engine::new(config)?;
+    let err = Module::new(&engine, "(module)")
+        .expect_err("compilation should fail without async support");
+    assert!(
+        format!("{err:#}").contains("epoch interruption via mmu requires async support"),
+        "unexpected error: {err:#}"
+    );
+    Ok(())
+}
+
+// With Cranelift only the x64 backend is supported.
+#[wasmtime_test(strategies(only(CraneliftNative)))]
+fn requires_x86_64_target(config: &mut Config) -> Result<()> {
+    config_for_mmu_epochs(config);
+    config.target("aarch64").unwrap();
+    config.signals_based_traps(true);
+    let err = Engine::new(config).expect_err("engine creation should fail");
+    assert_eq!(
+        err.to_string(),
+        "epoch interruption via mmu is only supported on x86_64, not for: `aarch64-unknown-unknown-elf`",
+    );
+    Ok(())
+}
+
+// The Winch backend does not support this feature.
+#[wasmtime_test(strategies(only(Winch)))]
+fn rejected_by_winch(config: &mut Config) -> Result<()> {
+    config_for_mmu_epochs(config);
+    let err = Engine::new(config).expect_err("engine creation should fail");
+    assert_eq!(
+        err.to_string(),
+        "Winch does not currently support epoch interruption via mmu",
+    );
+    Ok(())
+}
+
+// Pulley does not support this feature, since it does not support signals
+// based traps.
+#[wasmtime_test(strategies(only(CraneliftPulley)))]
+fn rejected_by_pulley(config: &mut Config) -> Result<()> {
+    config_for_mmu_epochs(config);
+    let err = Engine::new(config).expect_err("engine creation should fail");
+    assert!(
+        err.to_string().contains("epoch interruption via mmu"),
+        "unexpected error: {err}"
+    );
+    Ok(())
+}
+
+// AOT compilation succeeds with the right flags set.
+#[wasmtime_test(strategies(only(CraneliftNative)))]
+fn precompile_succeeds_for_valid_config_on_any_host(config: &mut Config) -> Result<()> {
+    config_for_mmu_epochs(config);
+    config.target("x86_64-unknown-linux-gnu").unwrap();
+    config.signals_based_traps(true);
+    let engine = Engine::new(config).unwrap();
+    engine
+        .precompile_module(r#"(module (memory 0) (func))"#.as_bytes())
+        .expect("precompilation should succeed regardless of host");
+    Ok(())
+}
+
+#[cfg(not(all(target_arch = "x86_64", target_os = "linux")))]
+#[wasmtime_test(strategies(only(CraneliftNative)))]
+fn compile_and_run_fails_on_unsupported_host(config: &mut Config) -> Result<()> {
+    config_for_mmu_epochs(config);
+    config.signals_based_traps(true);
+    let err = match Engine::new(config) {
+        Err(err) => err,
+        Ok(engine) => Module::new(&engine, "(module)")
+            .expect_err("compile-and-run should fail on an unsupported host"),
+    };
+    assert!(
+        err.to_string().contains("only supported on x86_64"),
+        "unexpected error: {err}"
+    );
+    Ok(())
 }
