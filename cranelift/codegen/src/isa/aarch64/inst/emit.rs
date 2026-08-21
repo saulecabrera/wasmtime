@@ -3633,6 +3633,23 @@ impl MachInstEmit for Inst {
                 .emit(sink, emit_info, state);
                 sink.bind_label(loop_end, &mut state.ctrl_plane);
             }
+
+            &Inst::DeadLoadWithContext { dst, load_ptr, .. } => {
+                let start = sink.cur_offset();
+
+                // Reuse the `dst` address as the destination of the dead load,
+                // since we are clobbering it anyway.
+                sink.put4(enc_ldst_uimm12(
+                    0b1111100001,
+                    UImm12Scaled::zero(I64),
+                    load_ptr,
+                    dst.to_reg(),
+                ));
+
+                // Mark the address of this instruction as part of mmu
+                // interrupt.
+                sink.add_mmu_interrupt_check(start, sink.cur_offset());
+            }
         }
 
         let end_off = sink.cur_offset();
